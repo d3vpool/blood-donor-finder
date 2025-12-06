@@ -1,6 +1,6 @@
 // src/App.js
 import React, { useState, useCallback, useRef, useEffect } from "react";
-import { setupAutoRegistration, initMessaging } from "./firebaseMessaging";
+import { setupAutoRegistration, initMessaging, requestNotificationPermissionAndGetToken, onForegroundMessage } from "./firebaseMessaging";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { onAuthStateChanged } from "firebase/auth";
@@ -34,6 +34,8 @@ function App() {
 
   const [mapController, setMapControllerState] = useState(null);
   const pendingFocusRef = useRef([]);
+
+  const [notificationToken, setNotificationToken] = useState(null);
 
   useEffect(() => {
       // initialize messaging service worker + messaging instance once
@@ -70,6 +72,40 @@ function App() {
       };
     }, []);
 
+  // Firebase Cloud Messaging integration
+  useEffect(() => {
+    // Request notification permission and get token
+    requestNotificationPermissionAndGetToken()
+      .then((token) => {
+        if (token) {
+          setNotificationToken(token);
+          console.log('Notification token stored:', token);
+        }
+      })
+      .catch((error) => {
+        console.error('Error getting notification token:', error);
+      });
+
+    // Register foreground message listener
+    const unsubscribe = onForegroundMessage((payload) => {
+      console.log('Foreground message received:', payload);
+      
+      // Show alert with notification title/body if available
+      if (payload.notification) {
+        const title = payload.notification.title || 'New Notification';
+        const body = payload.notification.body || '';
+        alert(`${title}\n${body}`);
+      }
+    });
+
+    return () => {
+      // Cleanup: unsubscribe from foreground messages if needed
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, []);
+
   const handleSetMapController = useCallback((controller) => {
     setMapControllerState(controller);
 
@@ -97,6 +133,26 @@ function App() {
   return (
     <>
       <div>
+        {/* Debug: Display notification token */}
+        {notificationToken && (
+          <div style={{ 
+            position: 'fixed', 
+            top: '10px', 
+            right: '10px', 
+            background: 'rgba(0,0,0,0.8)', 
+            color: 'white', 
+            padding: '10px', 
+            borderRadius: '5px', 
+            fontSize: '10px', 
+            maxWidth: '300px', 
+            wordBreak: 'break-all',
+            zIndex: 9999 
+          }}>
+            <strong>FCM Token:</strong><br />
+            {notificationToken}
+          </div>
+        )}
+
         <Header
           isLoginModalOpen={isLoginModalOpen}
           setIsLoginModalOpen={setIsLoginModalOpen}
