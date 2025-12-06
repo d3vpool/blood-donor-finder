@@ -1,0 +1,209 @@
+/* -------------------------------------------------
+   SEARCH SECTION WRAPPER
+-------------------------------------------------- */
+.search-section {
+  background-color: rgba(107, 106, 106, 0.5);
+  padding: 80px 0;
+}
+
+.container {
+  max-width: 900px; /* slightly wider to allow centering room */
+  margin: 0 auto;
+}
+
+.title {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+/* -------------------------------------------------
+   FORM LAYOUT (3-column grid)
+-------------------------------------------------- */
+.search-form {
+  background-color: white;
+  padding: 14px 18px;
+  border-radius: 10px;
+
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: auto auto;
+  gap: 20px 20px;
+
+  max-width: 650px;
+  margin: 0 auto;
+}
+
+/* controls row spans full width and centers dropdowns */
+.search-form > .controls {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  gap: 48px; /* spacing between the two dropdowns — adjust as needed */
+  align-items: start;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* keep each form-group consistent and constrained */
+.search-form .controls .form-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  max-width: 220px; /* adjust to taste */
+}
+
+/* -------------------------------------------------
+   ORIGINAL FORM-GROUP (fallback for other uses)
+-------------------------------------------------- */
+.form-row {
+  display: contents;
+}
+
+.form-group {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #333;
+}
+
+.form-group select {
+  width: 100%;
+  padding: 12px;
+  font-size: 0.95rem;
+  border: 2px solid #333;
+  border-radius: 8px;
+  background-color: #fff;
+  color: #222;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg fill='black' height='20' viewBox='0 0 24 24' width='20' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+}
+
+.form-group select:hover {
+  border-color: #000;
+}
+
+.form-group select:focus {
+  outline: none;
+  border-color: #e74c3c;
+  box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.25);
+}
+
+.form-group select:disabled {
+  background-color: #eee;
+  color: #777;
+  cursor: not-allowed;
+}
+
+/* -------------------------------------------------
+   BUTTON (centered, spans all columns)
+-------------------------------------------------- */
+.form-group-full {
+  grid-column: 1 / 4;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.form-group-full .search-section-button {
+  width: fit-content;
+  margin: 10px 0;
+}
+
+/* -------------------------------------------------
+   SEARCH BUTTON (your gradient red style)
+-------------------------------------------------- */
+.search-section-button {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  color: #fff;
+  padding: 14px 32px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(231, 76, 60, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.search-section-button:hover {
+  background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+  box-shadow: 0 6px 12px rgba(231, 76, 60, 0.4);
+  transform: translateY(-2px);
+}
+
+.search-section-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(231, 76, 60, 0.3);
+}
+
+.search-section-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.3);
+}
+
+/* -------------------------------------------------
+   RESULTS SECTION BELOW (unchanged)
+-------------------------------------------------- */
+.search-result {
+  padding: 60px 0;
+}
+
+.donor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.donor-card {
+  background: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.contact-btn {
+  margin-top: 15px;
+  background: #e74c3c;
+  color: #fff;
+  border-radius: 6px;
+  padding: 10px 15px;
+  width: 100%;
+}
+
+/* -------------------------------------------------
+   RESPONSIVE: stack controls on small screens
+-------------------------------------------------- */
+@media (max-width: 600px) {
+  .search-form {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .search-form > .controls {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  .search-form .controls .form-group {
+    max-width: 100%;
+    align-items: stretch;
+    text-align: left;
+  }
+  .search-form .controls .form-group select {
+    max-width: 100%;
+  }
+}

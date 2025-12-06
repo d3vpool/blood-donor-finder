@@ -1,0 +1,163 @@
+/*
+|---------------------------------------------
+| GLOBAL STYLES (Variables, Base Elements, Utilities)
+|---------------------------------------------
+| This file should be imported once, typically in index.js or App.js.
+*/
+
+/* --- ROOT VARIABLES (All of your :root blocks) --- */
+:root {
+  /* Primitive Color Tokens */
+  --color-white: rgba(255, 255, 255, 1);
+  --color-black: rgba(0, 0, 0, 1);
+  /* ... (all other --color-xxx variables from your original file) ... */
+  --color-cream-50: rgba(252, 252, 249, 1);
+  /* ... */
+  --color-teal-700: rgba(26, 104, 115, 1);
+  --color-teal-800: rgba(41, 150, 161, 1);
+  --color-red-400: rgba(255, 84, 89, 1);
+  --color-red-500: rgba(192, 21, 47, 1);
+  --color-orange-400: rgba(230, 129, 97, 1);
+  --color-orange-500: rgba(168, 75, 47, 1);
+
+  /* RGB versions for opacity control */
+  --color-brown-600-rgb: 94, 82, 64;
+  /* ... (all other --color-xxx-rgb variables) ... */
+  --color-orange-400-rgb: 230, 129, 97;
+
+  /* Background color tokens (Light Mode) */
+  --color-bg-1: rgba(59, 130, 246, 0.08);
+  /* ... (all other --color-bg-x variables) ... */
+  --color-bg-8: rgba(6, 182, 212, 0.08);
+
+  /* Semantic Color Tokens (Light Mode) */
+  --color-background: var(--color-cream-50);
+  /* ... (all other --color-semantic variables) ... */
+  --color-select-caret: rgba(var(--color-slate-900-rgb), 0.8);
+
+  /* Common style patterns */
+  --focus-ring: 0 0 0 3px var(--color-focus-ring);
+  /* ... (all other --focus-ring, --select-caret-xxx variables) ... */
+
+  /* RGB versions for opacity control */
+  --color-success-rgb: 33, 128, 141;
+  /* ... (all other --color-status-rgb variables) ... */
+
+  /* Typography, Spacing, Radius, Shadows, Animation, Layout */
+  --font-family-base: "FKGroteskNeue", "Geist", "Inter", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* ... (all other --font-size-xxx, --space-xxx, --radius-xxx, --shadow-xxx, --container-xxx variables) ... */
+  --container-xl: 1280px;
+
+  /* Custom color overrides for blood donor website */
+  --color-orange-primary: #FF6B35;
+  --color-orange-hover: #E55A2B;
+  --color-orange-active: #CC4E22;
+  --color-orange-light: rgba(255, 107, 53, 0.1);
+  --color-orange-rgb: 255, 107, 53;
+
+  /* Override design system colors */
+  --color-primary: var(--color-orange-primary);
+  --color-primary-hover: var(--color-orange-hover);
+  --color-primary-active: var(--color-orange-active);
+  --color-focus-ring: rgba(var(--color-orange-rgb), 0.4);
+
+  /* Black and white overrides */
+  --color-black: #000000;
+  --color-white: #FFFFFF;
+  --color-background: var(--color-white);
+  --color-surface: var(--color-white);
+  --color-text: var(--color-black);
+  --color-text-secondary: #666666;
+}
+
+/* --- DARK MODE & DATA ATTRIBUTES (All @media and [data-color-scheme] blocks) --- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* ... (All Dark Mode Variable Overrides) ... */
+    --color-success-rgb: var(--color-teal-300-rgb);
+  }
+}
+
+[data-color-scheme="dark"] {
+  /* ... (All [data-color-scheme="dark"] Variable Overrides) ... */
+}
+
+[data-color-scheme="light"] {
+  /* ... (All [data-color-scheme="light"] Variable Overrides) ... */
+}
+
+/* --- BASE STYLES (html, body, *, Typography, Links, Code) --- */
+html {
+  font-size: var(--font-size-base);
+  font-family: var(--font-family-base);
+  /* ... (rest of html styles) ... */
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family-base); /* Duplicated from base styles, keep for safety */
+  line-height: var(--line-height-normal);
+  color: var(--color-text);
+  background-color: var(--color-background);
+}
+*, *::before, *::after { box-sizing: inherit; }
+h1, h2, h3, h4, h5, h6 { /* ... (all heading styles) ... */ }
+h1 { font-size: var(--font-size-4xl); }
+/* ... (h2-h6 styles) ... */
+p { margin: 0 0 var(--space-16) 0; }
+a { /* ... (a styles) ... */ }
+a:hover { /* ... (a:hover styles) ... */ }
+code, pre { /* ... (code/pre styles) ... */ }
+code { /* ... */ }
+pre { /* ... */ }
+pre code { /* ... */ }
+:focus-visible { /* ... (focus-visible styles) ... */ }
+
+/* --- BUTTON BASE STYLES (.btn, .btn--sm, .btn--lg, .btn:disabled, etc.) --- */
+.btn { /* ... */ }
+.btn:focus-visible { /* ... */ }
+.btn--primary { /* ... */ }
+.btn--primary:hover { /* ... */ }
+.btn--primary:active { /* ... */ }
+.btn--secondary { /* ... */ }
+.btn--secondary:hover { /* ... */ }
+.btn--secondary:active { /* ... */ }
+.btn--outline { /* ... */ }
+.btn--outline:hover { /* ... */ }
+.btn--sm { /* ... */ }
+.btn--lg { /* ... */ }
+.btn--full-width { /* ... */ }
+.btn:disabled { /* ... */ }
+
+/* --- FORM BASE STYLES (.form-control, .form-label, .form-group, etc.) --- */
+.form-control { /* ... */ }
+textarea.form-control { /* ... */ }
+select.form-control { /* ... */ }
+/* Dark mode select caret overrides */
+@media (prefers-color-scheme: dark) { select.form-control { background-image: var(--select-caret-dark); } }
+[data-color-scheme="dark"] select.form-control { background-image: var(--select-caret-dark); }
+[data-color-scheme="light"] select.form-control { background-image: var(--select-caret-light); }
+.form-control:focus { /* ... */ }
+.form-label { /* ... */ }
+.form-group { /* ... */ }
+
+/* --- CARD, STATUS, AND CONTAINER BASE STYLES --- */
+.card { /* ... */ }
+.card:hover { /* ... */ }
+.card__body { /* ... */ }
+.card__header, .card__footer { /* ... */ }
+.status { /* ... */ }
+.status--success, .status--error, .status--warning, .status--info { /* ... */ }
+.container { /* ... */ }
+@media (min-width: 640px) { /* ... (all @media container styles) ... */ }
+
+/* --- UTILITY CLASSES (flex, gap, m-*, p-*, etc.) --- */
+.flex, .flex-col, .items-center, .justify-center, .justify-between { /* ... */ }
+.gap-4, .gap-8, .gap-16 { /* ... */ }
+.m-0, .mt-8, .mb-8, .mx-8, .my-8 { /* ... */ }
+.p-0, .py-8, .px-8, .py-16, .px-16 { /* ... */ }
+.block, .hidden { /* ... */ }
+.sr-only { /* ... */ }
+@font-face { /* ... (font-face block) ... */ }

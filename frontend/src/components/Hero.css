@@ -1,0 +1,128 @@
+.hero {
+  background: linear-gradient(135deg, #000000 0%, #333333 100%);
+  color: #fff;
+  padding: 120px 0 80px;
+  text-align: center;
+}
+
+.hero-title {
+  font-size: 2.8rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.hero-subtitle {
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 32px;
+  line-height: 1.6;
+}
+
+.hero-action {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.hero-action a {
+  padding: 12px 25px;
+  margin: 5px;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: 0.3s;
+  text-decoration: none;
+}
+
+.hero-search-button {
+  background: #ff6b35;
+  color: #ffffff;
+}
+
+.hero-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.hero-search-button:hover {
+  opacity: 0.9;
+}
+
+.hero-register-button {
+  background: transparent;
+  border: 2px solid #fff;
+  color: #fff;
+}
+
+.hero-register-button:hover {
+  background: #fff;
+  color: #ff6b35;
+}
+
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  /* display: flex;
+  justify-content: center; */
+  gap: 40px;
+  max-width: 600px;
+  margin: 0 auto;
+  margin-top: 40px;
+}
+
+.stat-number {
+  font-size: 2rem;         
+  font-weight: 700;       
+  color: #ff6b35;          
+  margin-bottom: 8px;     
+}
+
+.hero-welcome {
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: #e74c3c;
+  margin-bottom: 20px;
+  text-align: center;
+  animation: fadeInDown 0.6s ease-out;
+}
+
+.hero-welcome-name {
+  font-weight: 700;
+  color: #c0392b;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+@media (max-width: 768px) {
+  .hero-stats {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .hero-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+  }
+  
+  .hero-action a {
+    width: fit-content;
+    flex: none;
+    min-width: 0;
+    margin: 5px 0;
+    
+  }
+}

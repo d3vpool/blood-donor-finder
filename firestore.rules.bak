@@ -1,0 +1,45 @@
+﻿rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Lowercase 'users' collection used by client token registration
+    match /users/{userId} {
+      // allow authenticated users to read their own profile
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // allow the authenticated user to create/update/delete their own doc
+      allow create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Users collection (capitalized) — keep if you also use it elsewhere
+    match /Users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Donors collection: allow reads to authenticated users.
+    // Allow create/update/delete only for the owner (uid).
+    match /Donors/{donorId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && request.auth.uid == donorId;
+    }
+
+    // UserTokens: store push token per-uid; only owner may write/delete
+    // (if you prefer tokens in a dedicated collection, keep this)
+    match /UserTokens/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create, update, delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // requests collection — recipients can create requests
+    match /requests/{reqId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null;
+      allow update, delete: if request.auth != null && resource.data.requestorUid == request.auth.uid;
+    }
+
+    // Default: deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

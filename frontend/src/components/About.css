@@ -1,0 +1,53 @@
+.about-section {
+  padding: 80px 0;
+}
+
+.about-section h2 {
+  text-align: center;
+  margin-bottom: 50px;
+  color: #e74c3c;
+}
+
+.about-text ul li {
+  margin-bottom: 8px;
+}
+
+.about-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+}
+
+.about-text, .blood-types-chart {
+  flex: 1;
+  min-width: 300px;
+}
+
+.blood-types-chart h3 {
+  text-align: center;
+}
+
+.compatibility-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 20px;
+}
+
+.blood-type-card {
+  background-color: rgb(21, 128, 61, 0.15);
+  padding: 16px;
+  border-radius: 8px;
+  text-align: center;
+  border: 2px solid transparent;
+  transition: border-color 0.2s ease-in-out;
+}
+
+.blood-type-card:hover {
+  border-color: #e74c3c;
+}
+
+.blood-type {
+  font-weight: 700;
+  color: #e74c3c;
+  font-size: 1.2rem;
+}

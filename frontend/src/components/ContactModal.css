@@ -1,0 +1,137 @@
+/* BACKDROP */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+/* MODAL BOX */
+.modal-content {
+  position: relative; /* required for absolute close button */
+  background: #fff;
+  padding: 25px 25px 20px 25px;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 420px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* HEADER ROW */
+.modal-header {
+  margin-bottom: 10px;
+}
+
+/* FIXED TOP-RIGHT CLOSE BUTTON */
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #fff;
+  border: none;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  color: #333;
+}
+
+.modal-close:hover {
+  color: #e74c3c;
+}
+
+/* BODY */
+.modal-body p {
+  margin: 10px 0;
+}
+
+/* STATUS BADGES */
+.status-available {
+  background: #d4edda;
+  color: #155724;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.status-unavailable {
+  background: #f8d7da;
+  color: #721c24;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+/* LINKS */
+.modal-body a {
+  text-decoration: none;
+  color: #e74c3c;
+  font-weight: 500;
+}
+
+.modal-body a:hover {
+  text-decoration: underline;
+}
+
+/* NOTE BOX */
+.contact-note {
+  background: #ffe5e5;
+  border-left: 4px solid #e74c3c;
+  color: #af6868;
+  font-size: 0.9rem;
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-top: 15px;
+  line-height: 1.4;
+}
+.request-button {
+  background: #2ecc71;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 15px;
+  width: 100%;
+  cursor: pointer;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.contact-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  resize: vertical;
+  margin-top: 6px;
+}
+
+
+.request-button:hover {
+  background: #27ae60;
+}
+
+/* FOOTER BUTTON */
+.contact-button {
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 15px;
+  width: 100%;
+  cursor: pointer;
+  margin-top: 12px;
+}
+
+.contact-button:hover {
+  background: #c0392b;
+}
