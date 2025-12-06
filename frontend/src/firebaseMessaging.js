@@ -11,6 +11,7 @@
  */
 
 import firebaseAppDefault from './firebase'; // your local firebase initializer (default export)
+import { messaging } from './firebase';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import {
   getFirestore,
@@ -175,10 +176,49 @@ export function listenForegroundMessages(callback, app = null) {
   return typeof unsub === 'function' ? unsub : () => {};
 }
 
+/**
+ * Request notification permission and get FCM token.
+ * @returns {Promise<string|null>} The FCM token or null if permission denied
+ */
+export async function requestNotificationPermissionAndGetToken() {
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      console.warn('Notification permission not granted:', permission);
+      return null;
+    }
+
+    const vapidKey = process.env.REACT_APP_FIREBASE_VAPID_KEY;
+    if (!vapidKey) {
+      console.warn('REACT_APP_FIREBASE_VAPID_KEY is not set');
+    }
+
+    const token = await getToken(messaging, { vapidKey });
+    console.log('FCM Token:', token);
+    return token;
+  } catch (error) {
+    console.error('Error getting FCM token:', error);
+    throw error;
+  }
+}
+
+/**
+ * Listen to foreground messages using onMessage.
+ * @param {(payload: Object) => void} callback - Callback function to handle the message payload
+ */
+export function onForegroundMessage(callback) {
+  if (typeof callback !== 'function') {
+    throw new Error('onForegroundMessage: callback must be a function');
+  }
+  return onMessage(messaging, callback);
+}
+
 export default {
   initMessaging,
   setupAutoRegistration,
   registerTokenForUser,
   removeTokenForUser,
   listenForegroundMessages,
+  requestNotificationPermissionAndGetToken,
+  onForegroundMessage,
 };
