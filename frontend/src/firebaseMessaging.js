@@ -11,7 +11,7 @@
  */
 
 import firebaseAppDefault from './firebase'; // your local firebase initializer (default export)
-import { messaging } from './firebase';
+import { messaging, db } from './firebase';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import {
   getFirestore,
@@ -58,7 +58,7 @@ export async function initMessaging(appOrNull = null, swPath = '/firebase-messag
  * Request permission, get token and register it for the uid in Firestore.
  * @param {{app?: FirebaseApp, uid: string, swPath?: string}} param0
  */
-export async function setupAutoRegistration({ app: maybeApp = null, uid, swPath } = {}) {
+export async function setupAutoRegistrationLegacy({ app: maybeApp = null, uid, swPath } = {}) {
   const app = resolveApp(maybeApp);
   if (!uid) throw new Error('setupAutoRegistration: uid is required');
 
@@ -88,7 +88,7 @@ export async function setupAutoRegistration({ app: maybeApp = null, uid, swPath 
     }
 
     if (currentToken) {
-      await registerTokenForUser(currentToken, uid, app);
+      await registerTokenForUser(uid, currentToken);
       return currentToken;
     } else {
       console.warn('No registration token available.');
@@ -101,61 +101,56 @@ export async function setupAutoRegistration({ app: maybeApp = null, uid, swPath 
 }
 
 /**
- * Store token into users/{uid}.fcmTokens array in Firestore.
+ * Setup auto registration for a user - requests permission, gets token, and registers it.
+ * @param {Object} user - User object with uid property
  */
-export async function registerTokenForUser(token, uid, app = null) {
-  if (!token) throw new Error('registerTokenForUser: token required');
-  if (!uid) throw new Error('registerTokenForUser: uid required');
-
-  const appToUse = resolveApp(app);
-  const db = getFirestore(appToUse);
-  const userRef = doc(db, 'users', uid);
+export const setupAutoRegistration = async (user) => {
+  if (!user || !user.uid) return;
 
   try {
-    const snapshot = await getDoc(userRef);
-    if (!snapshot.exists()) {
-      await setDoc(userRef, { fcmTokens: [token] }, { merge: true });
-    } else {
-      await updateDoc(userRef, { fcmTokens: arrayUnion(token) });
+    const token = await requestNotificationPermissionAndGetToken();
+
+    if (token) {
+      await registerTokenForUser(user.uid, token);
+      console.log("Registered FCM token for user:", user.uid, token);
     }
   } catch (err) {
-    console.error('registerTokenForUser failed:', err);
-    throw err;
+    console.warn("setupAutoRegistration failed:", err);
   }
-}
+};
 
 /**
- * Remove current device token from users/{uid}.fcmTokens array.
+ * Store token into users/{uid}.fcmTokens array in Firestore.
+ * @param {string} uid - User ID
+ * @param {string} token - FCM token
  */
-export async function removeTokenForUser(uid, app = null) {
-  if (!uid) throw new Error('removeTokenForUser: uid required');
+export const registerTokenForUser = async (uid, token) => {
+  if (!uid || !token) return;
 
-  const appToUse = resolveApp(app);
-  const db = getFirestore(appToUse);
-  const userRef = doc(db, 'users', uid);
+  const userRef = doc(db, "users", uid);
 
-  try {
-    const messaging = getMessaging(appToUse);
-    const vapidKey = process.env.REACT_APP_FIREBASE_VAPID_KEY || process.env.REACT_APP_VAPID_KEY || null;
+  // Ensure user doc exists and add token to an array field
+  await setDoc(
+    userRef,
+    { fcmTokens: arrayUnion(token) },
+    { merge: true }
+  );
+};
 
-    let token = null;
-    try {
-      if (vapidKey) token = await getToken(messaging, { vapidKey });
-      else token = await getToken(messaging);
-    } catch (tErr) {
-      console.warn('Could not fetch current token (getToken):', tErr);
-      return false;
-    }
+/**
+ * Remove token from users/{uid}.fcmTokens array in Firestore.
+ * @param {string} uid - User ID
+ * @param {string} token - FCM token to remove
+ */
+export const removeTokenForUser = async (uid, token) => {
+  if (!uid || !token) return;
 
-    if (!token) return true;
+  const userRef = doc(db, "users", uid);
 
-    await updateDoc(userRef, { fcmTokens: arrayRemove(token) });
-    return true;
-  } catch (err) {
-    console.error('removeTokenForUser failed:', err);
-    return false;
-  }
-}
+  await updateDoc(userRef, {
+    fcmTokens: arrayRemove(token),
+  });
+};
 
 /**
  * Listen to foreground messages. Optionally pass an app to ensure correct messaging instance.
@@ -193,7 +188,23 @@ export async function requestNotificationPermissionAndGetToken() {
       console.warn('REACT_APP_FIREBASE_VAPID_KEY is not set');
     }
 
-    const token = await getToken(messaging, { vapidKey });
+    // Wait for service worker to be ready and get registration
+    let serviceWorkerRegistration = null;
+    if ('serviceWorker' in navigator) {
+      try {
+        serviceWorkerRegistration = await navigator.serviceWorker.ready;
+      } catch (error) {
+        console.warn('Service worker not ready:', error);
+      }
+    }
+
+    // Pass serviceWorkerRegistration to getToken to avoid pushManager error
+    const tokenOptions = { vapidKey };
+    if (serviceWorkerRegistration) {
+      tokenOptions.serviceWorkerRegistration = serviceWorkerRegistration;
+    }
+
+    const token = await getToken(messaging, tokenOptions);
     console.log('FCM Token:', token);
     return token;
   } catch (error) {
