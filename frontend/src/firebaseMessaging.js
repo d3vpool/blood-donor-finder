@@ -127,7 +127,7 @@ export const setupAutoRegistration = async (user) => {
 export const registerTokenForUser = async (uid, token) => {
   if (!uid || !token) return;
 
-  const userRef = doc(db, "users", uid);
+  const userRef = doc(db, "UserTokens", uid);
 
   // Ensure user doc exists and add token to an array field
   await setDoc(
@@ -145,7 +145,7 @@ export const registerTokenForUser = async (uid, token) => {
 export const removeTokenForUser = async (uid, token) => {
   if (!uid || !token) return;
 
-  const userRef = doc(db, "users", uid);
+  const userRef = doc(db, "UserTokens", uid);
 
   await updateDoc(userRef, {
     fcmTokens: arrayRemove(token),
