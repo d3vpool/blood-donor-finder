@@ -30,18 +30,13 @@ export default function ContactModal({ user, recipient = {}, onClose }) {
 
   if (!user) return null;
 
-  // Compute donor UID
   const donorUid =
     user.uid ||
     user.id ||
     user.userId ||
     user.donorId ||
-    user.uidRef ||
     null;
-
-  if (!donorUid) {
-    console.warn("No donorUid found in user object", { user });
-  }
+  console.log("ContactModal donorUid:", donorUid, user);
 
   const escapeHtml = (str) => {
     if (str === null || str === undefined) return "";
@@ -117,9 +112,8 @@ export default function ContactModal({ user, recipient = {}, onClose }) {
     try {
       await send(serviceId, templateId, templateParams);
       
-      // Create Firestore document in requests collection to trigger Cloud Function
-      if (donorUid) {
-        try {
+      try {
+        if (donorUid) {
           const bloodTypeToUse = recipient.bloodType || recipient.blood || bloodGroup;
           await addDoc(collection(db, "requests"), {
             toUid: donorUid,
@@ -129,13 +123,12 @@ export default function ContactModal({ user, recipient = {}, onClose }) {
             message: recipientMessage || recipient.message || "",
             createdAt: serverTimestamp(),
           });
-          console.log("Firestore request document created", { donorUid, bloodType: bloodTypeToUse });
-        } catch (firestoreErr) {
-          console.error("Error creating Firestore request document:", firestoreErr);
-          // Don't fail the whole request if Firestore write fails
+          console.log("Created request doc for donor:", donorUid);
+        } else {
+          console.warn("No donorUid found; not creating requests doc", user);
         }
-      } else {
-        console.warn("No donorUid found; not creating requests doc", { user });
+      } catch (e) {
+        console.error("Error creating Firestore request doc:", e);
       }
       
       setSent(true);

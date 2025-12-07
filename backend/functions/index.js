@@ -59,12 +59,22 @@ exports.notifyDonorOnRequest = onDocumentCreated(
     logger.info("notifyDonorOnRequest triggered", { reqId });
 
     try {
-      const reqData = event.data?.data || {};
-      const toUid = reqData?.toUid;
-      const quantity = reqData?.quantity;
-      const bloodType = reqData?.bloodType;
+      const reqData = event.data?.data() || {};
+      logger.info("Request document data", { reqId, reqData });
 
-      logger.info("Request document data", { reqData, toUid, quantity, bloodType });
+      const toUid =
+        reqData?.toUid ||
+        reqData?.donorUid ||
+        reqData?.donorId ||
+        reqData?.userId ||
+        null;
+
+      const quantity = reqData?.quantity || reqData?.units || 1;
+      const bloodType =
+        reqData?.bloodType ||
+        reqData?.blood_group ||
+        reqData?.blood ||
+        null;
 
       if (!toUid) {
         logger.warn("Missing toUid in request doc", { reqId, reqData });
