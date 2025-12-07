@@ -64,6 +64,8 @@ exports.notifyDonorOnRequest = onDocumentCreated(
       const quantity = reqData?.quantity;
       const bloodType = reqData?.bloodType;
 
+      logger.info("Request document data", { reqData, toUid, quantity, bloodType });
+
       if (!toUid) {
         logger.warn("Missing toUid in request doc", { reqId, reqData });
         return;
@@ -71,13 +73,23 @@ exports.notifyDonorOnRequest = onDocumentCreated(
 
       // 1) Try UserTokens/<toUid>
       let fcmToken = null;
-      let tokenDocRef = db.doc(`UserTokens/${toUid}`);
+      const tokenDocRef = db.doc(`UserTokens/${toUid}`);
       try {
         const tokenSnap = await tokenDocRef.get();
         if (tokenSnap.exists) {
           const td = tokenSnap.data();
-          fcmToken = td?.token || td?.fcmToken || td?.deviceToken || null;
-          if (fcmToken) logger.info("Found token in UserTokens", { toUid });
+          // Check if fcmTokens is an array and find the first non-empty string token
+          if (Array.isArray(td.fcmTokens)) {
+            fcmToken = td.fcmTokens.find(token => typeof token === 'string' && token.trim().length > 0) || null;
+            if (fcmToken) {
+              logger.info("Found token in UserTokens", { toUid });
+              logger.info("Using FCM token from UserTokens", { toUid, token: fcmToken });
+            } else {
+              logger.info("UserTokens doc has no fcmTokens or empty array", { toUid, td });
+            }
+          } else {
+            logger.info("UserTokens doc has no fcmTokens or empty array", { toUid, td });
+          }
         }
       } catch (err) {
         logger.error("Error reading UserTokens doc", { toUid, err });
@@ -126,10 +138,12 @@ exports.notifyDonorOnRequest = onDocumentCreated(
           code === "messaging/invalid-registration-token"
         ) {
           try {
-            if (tokenDocRef) {
-              // remove token field or delete doc depending on your schema preference
-              await tokenDocRef.delete();
-              logger.warn("Deleted stale token document at UserTokens", { toUid });
+            if (tokenDocRef && fcmToken) {
+              // Remove the specific token from the fcmTokens array
+              await tokenDocRef.update({
+                fcmTokens: admin.firestore.FieldValue.arrayRemove(fcmToken)
+              });
+              logger.warn("Removed stale token from UserTokens fcmTokens array", { toUid });
             } else if (donorDocRef) {
               // remove fcmToken field from donor doc
               await donorDocRef.update({ fcmToken: admin.firestore.FieldValue.delete() });

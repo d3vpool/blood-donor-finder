@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from "react";
 import "./ContactModal.css";
 import { init, send } from "@emailjs/browser";
-import { auth } from "../firebase"; // ensure this path matches your firebase export
+import { auth, db } from "../firebase"; // ensure this path matches your firebase export
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 /**
  * ContactModal
@@ -28,6 +29,19 @@ export default function ContactModal({ user, recipient = {}, onClose }) {
   }, []);
 
   if (!user) return null;
+
+  // Compute donor UID
+  const donorUid =
+    user.uid ||
+    user.id ||
+    user.userId ||
+    user.donorId ||
+    user.uidRef ||
+    null;
+
+  if (!donorUid) {
+    console.warn("No donorUid found in user object", { user });
+  }
 
   const escapeHtml = (str) => {
     if (str === null || str === undefined) return "";
@@ -102,6 +116,28 @@ export default function ContactModal({ user, recipient = {}, onClose }) {
 
     try {
       await send(serviceId, templateId, templateParams);
+      
+      // Create Firestore document in requests collection to trigger Cloud Function
+      if (donorUid) {
+        try {
+          const bloodTypeToUse = recipient.bloodType || recipient.blood || bloodGroup;
+          await addDoc(collection(db, "requests"), {
+            toUid: donorUid,
+            fromUid: currentUser?.uid || null,
+            bloodType: bloodTypeToUse,
+            quantity: 1,
+            message: recipientMessage || recipient.message || "",
+            createdAt: serverTimestamp(),
+          });
+          console.log("Firestore request document created", { donorUid, bloodType: bloodTypeToUse });
+        } catch (firestoreErr) {
+          console.error("Error creating Firestore request document:", firestoreErr);
+          // Don't fail the whole request if Firestore write fails
+        }
+      } else {
+        console.warn("No donorUid found; not creating requests doc", { user });
+      }
+      
       setSent(true);
       console.log("EmailJS: request sent", templateParams);
     } catch (err) {
