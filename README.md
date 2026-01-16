@@ -11,13 +11,11 @@ This project focuses on **real-world problem solving**, **clean architecture**, 
 
 ## ✨ Key Features
 
-- 🔍 Search donors by blood group
-- 👤 Donor registration and profile management
+- 🔍 Search donors by blood group and radius
+- 👤 Donor registration
 - 🔔 Real-time push notifications using Firebase Cloud Messaging (FCM)
 - ⚡ Fast and responsive React frontend
 - ☁️ Serverless backend with Firebase Cloud Functions
-- 🔐 Secure handling of secrets and environment variables
-- 🧹 Clean Git history with proper `.gitignore` practices
 
 ---
 
@@ -40,41 +38,39 @@ This project focuses on **real-world problem solving**, **clean architecture**, 
 ---
 
 ## 📁 Project Structure
-
+```text
 blood-donor-finder/
-
 ├── frontend/ # React application
-
 │ ├── src/
-
 │ ├── public/
-
 │ └── package.json
-
 ├── backend/ # Firebase Cloud Functions
-
 ├── firebase.json # Firebase configuration
-
 ├── firestore.rules # Firestore security rules
-
 ├── .firebaserc # Firebase project config
-
 └── README.md
-
+```
 
 ## ⚙️ Local Setup
 
 ### 1️. Clone the repository
+```bash
 git clone https://github.com/d3vpool/blood-donor-finder.git
 cd blood-donor-finder
-
+```
 ### 2️. Frontend setup
+```bash
 cd frontend
 npm install
 npm start
-The app will start on: http://localhost:3000
-
+```
+The app will start on: 
+```bash
+http://localhost:3000
+```
 ### 3️. Backend (Firebase Functions)
+```bash
 cd backend
 npm install
 firebase emulators:start
+```
