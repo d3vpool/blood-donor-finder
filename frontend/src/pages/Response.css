@@ -1,0 +1,55 @@
+.response-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: #0f0f0f;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.response-box {
+  text-align: center;
+  background: #1a1a1a;
+  padding: 30px 50px;
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+}
+
+.response-box h2 {
+  color: #fff;
+  margin-bottom: 25px;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.btn {
+  width: 200px;
+  padding: 14px;
+  font-size: 18px;
+  font-weight: bold;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  margin: 12px 0;
+  transition: 0.25s ease-in-out;
+  display: block; /* ensures vertical stacking */
+}
+
+
+.accept-btn {
+  background: #16c60c;
+  color: #000;
+}
+
+.accept-btn:hover {
+  background: #0da107;
+}
+
+.reject-btn {
+  background: #ff0033;
+  color: #fff;
+}
+
+.reject-btn:hover {
+  background: #d8002b;
+}

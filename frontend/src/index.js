@@ -1,14 +1,28 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 //import './index.css';
 import App from './App';
 import './styles/global.css';
 import reportWebVitals from './reportWebVitals';
+import ResponsePage from './pages/ResponsePage';
+
+/* const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+); */
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <App />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<App />} />
+        <Route path="/response" element={<ResponsePage />} />
+      </Routes>
+    </BrowserRouter>
   </React.StrictMode>
 );
 
