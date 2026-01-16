@@ -1,70 +1,80 @@
-# Getting Started with Create React App
+# 🩸 LifeLink – Blood Donor Finder
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+LifeLink is a full-stack web application designed to connect blood donors with people in need.
+It allows users to register as donors, search donors by blood group, and receive real-time
+notifications for urgent blood requests using Firebase Cloud Messaging (FCM).
 
-## Available Scripts
+This project focuses on **real-world problem solving**, **clean architecture**, and
+**production-ready practices**.
 
-In the project directory, you can run:
+---
 
-### `npm start`
+## ✨ Key Features
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- 🔍 Search donors by blood group
+- 👤 Donor registration and profile management
+- 🔔 Real-time push notifications using Firebase Cloud Messaging (FCM)
+- ⚡ Fast and responsive React frontend
+- ☁️ Serverless backend with Firebase Cloud Functions
+- 🔐 Secure handling of secrets and environment variables
+- 🧹 Clean Git history with proper `.gitignore` practices
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+---
 
-### `npm test`
+## 🛠 Tech Stack
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Frontend
+- React (Create React App)
+- JavaScript (ES6+)
+- Firebase Cloud Messaging
 
-### `npm run build`
+### Backend
+- Firebase Cloud Functions
+- Firestore (NoSQL Database)
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### Dev & Tooling
+- Firebase Hosting
+- Git & GitHub
+- Node.js
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+---
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## 📁 Project Structure
 
-### `npm run eject`
+blood-donor-finder/
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+├── frontend/ # React application
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+│ ├── src/
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+│ ├── public/
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+│ └── package.json
 
-## Learn More
+├── backend/ # Firebase Cloud Functions
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+├── firebase.json # Firebase configuration
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+├── firestore.rules # Firestore security rules
 
-### Code Splitting
+├── .firebaserc # Firebase project config
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+└── README.md
 
-### Analyzing the Bundle Size
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## ⚙️ Local Setup
 
-### Making a Progressive Web App
+### 1️. Clone the repository
+git clone https://github.com/d3vpool/blood-donor-finder.git
+cd blood-donor-finder
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+### 2️. Frontend setup
+cd frontend
+npm install
+npm start
+The app will start on: http://localhost:3000
 
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+### 3️. Backend (Firebase Functions)
+cd backend
+npm install
+firebase emulators:start
