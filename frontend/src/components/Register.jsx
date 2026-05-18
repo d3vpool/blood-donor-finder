@@ -6,6 +6,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { registerTokenForUser, removeTokenForUser } from "../firebaseMessaging";
 import { toast } from "react-toastify";
+import { encodeGeoHash } from "../utils/geoHash";
 
 function Register({ setIsLoginModalOpen }) {
   const initialState = {
@@ -46,7 +47,7 @@ function Register({ setIsLoginModalOpen }) {
     try {
       localStorage.removeItem("geoAllowed");
       localStorage.removeItem("recipientLocation");
-    } catch (_) {}
+    } catch (_) { }
   }, []);
 
   useEffect(() => {
@@ -120,7 +121,7 @@ function Register({ setIsLoginModalOpen }) {
         try {
           localStorage.setItem("geoAllowed", "true");
           localStorage.setItem("recipientLocation", JSON.stringify({ lat: latNum, lng: lngNum }));
-        } catch (_) {}
+        } catch (_) { }
         toast.success("Location access granted!", { position: "top-center" });
       },
       (error) => {
@@ -182,6 +183,7 @@ function Register({ setIsLoginModalOpen }) {
           latitude: Number(location.latitude),
           longitude: Number(location.longitude),
         },
+        geoHash: encodeGeoHash(Number(location.latitude), Number(location.longitude)),
         registeredAt: new Date().toISOString(),
       });
 
@@ -202,7 +204,7 @@ function Register({ setIsLoginModalOpen }) {
         if (typeof setIsLoginModalOpen === "function") {
           setIsLoginModalOpen(false);
         }
-      } catch (_) {}
+      } catch (_) { }
     } catch (error) {
       console.error("Registration error:", error);
       toast.error("Failed to register as donor. Try again.", { position: "top-center" });

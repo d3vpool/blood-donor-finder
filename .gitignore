@@ -19,6 +19,8 @@ frontend/build/
 
 # secrets
 backend/serviceAccountKey.json
+service-account.json
+*service-account.json
 .env
 .env.local
 .env.development.local
@@ -32,3 +34,5 @@ backend/serviceAccountKey.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*-debug.log
+

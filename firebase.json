@@ -4,19 +4,6 @@
   },
   "functions": [
     {
-      "codebase": "default",
-      "disallowLegacyRuntimeConfig": true,
-      "ignore": [
-        "node_modules",
-        ".git",
-        "firebase-debug.log",
-        "firebase-debug.*.log",
-        "*.local"
-      ],
-      "predeploy": [],
-      "source": "backend/functions"
-    },
-    {
       "source": "functions",
       "codebase": "functions",
       "disallowLegacyRuntimeConfig": true,
