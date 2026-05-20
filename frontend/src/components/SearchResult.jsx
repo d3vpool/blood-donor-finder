@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import ContactModal from "./ContactModal";
-import "./SearchResult.css";
 
 export default function SearchResult({ results = [], focusOn }) {
   const [selectedUser, setSelectedUser] = useState(null);
@@ -8,70 +7,54 @@ export default function SearchResult({ results = [], focusOn }) {
   const handleShowOnMap = (lat, lng) => {
     const container = document.getElementById("donorMapContainer");
     if (container) {
-      try {
-        container.scrollIntoView({ behavior: "smooth", block: "start" });
-      } catch (_) {
-        // fallback
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
+      try { container.scrollIntoView({ behavior: "smooth", block: "start" }); }
+      catch (_) { window.scrollTo({ top: 0, behavior: "smooth" }); }
     }
-    // give scroll a short moment to start, then call focus
     setTimeout(() => {
       if (typeof focusOn === "function") focusOn(Number(lat), Number(lng), 15);
     }, 350);
   };
 
   return (
-    <section className="search-result" id="search-result">
-      <div className="container">
-        <div id="searchResults" className="search-results">
-          <h3 className="results-title">Available Donors</h3>
+    <section className="py-16" id="search-result">
+      <div className="max-w-5xl mx-auto px-6">
+        <div id="searchResults">
+          <h3 className="text-2xl font-bold mb-6">Available Donors</h3>
 
           {results.length === 0 ? (
-            <p>No donors found.</p>
+            <div className="text-center py-8 bg-white rounded-2xl shadow-sm col-span-full">
+              <p className="text-gray-500">No donors found.</p>
+            </div>
           ) : (
-            <div id="donorCards" className="donor-grid">
+            <div id="donorCards" className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-5">
               {results.map((user, idx) => {
-                const lat =
-                  user?.location?.latitude ?? user?.location?.lat;
-                const lng =
-                  user?.location?.longitude ?? user?.location?.lng;
-
+                const lat = user?.location?.latitude ?? user?.location?.lat;
+                const lng = user?.location?.longitude ?? user?.location?.lng;
                 return (
-                  <div
-                    key={user.email || idx}
-                    className="donor-card"
-                  >
-                    <div className="donor-card-header">
-                      <span className="donor-name">
-                        {user.fullname}
-                      </span>
-                      <span className="donor-blood">
-                        {user.bloodType || user.bloodGroup}
-                      </span>
+                  <div key={user.email || idx} className="bg-white p-5 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.1)] transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="font-bold text-gray-900 text-lg">{user.fullname}</span>
+                      <span className="bg-red-100 text-red-700 font-bold text-sm px-2.5 py-1 rounded-full">{user.bloodType || user.bloodGroup}</span>
                     </div>
 
-                    <div className="donor-details">
-                      <p>Location: {user.address}</p>
-                      <p>Contact: {user.phoneNo}</p>
-                      <p>Email: {user.email}</p>
+                    <div className="text-sm text-gray-600 space-y-1 mb-4">
+                      <p>📍 {user.address}</p>
+                      <p>📞 {user.phoneNo}</p>
+                      <p>✉️ {user.email}</p>
                     </div>
 
-                    <div className="donor-card-actions">
+                    <div className="flex flex-col gap-2">
                       <button
-                        className="contact-btn"
+                        className="bg-[#e74c3c] text-white border-none rounded-md py-2.5 px-4 w-full font-semibold cursor-pointer hover:bg-[#c0392b] transition-colors"
                         onClick={() => setSelectedUser(user)}
                       >
                         Contact Donor
                       </button>
-
                       <button
-                        className="focus-btn"
-                        onClick={() => {
-                          if (lat != null && lng != null) handleShowOnMap(lat, lng);
-                        }}
+                        className="bg-gray-100 text-gray-700 border-none rounded-md py-2.5 px-4 w-full font-medium cursor-pointer hover:bg-gray-200 transition-colors"
+                        onClick={() => { if (lat != null && lng != null) handleShowOnMap(lat, lng); }}
                       >
-                        Show on map
+                        Show on Map
                       </button>
                     </div>
                   </div>
@@ -83,10 +66,7 @@ export default function SearchResult({ results = [], focusOn }) {
       </div>
 
       {selectedUser && (
-        <ContactModal
-          user={selectedUser}
-          onClose={() => setSelectedUser(null)}
-        />
+        <ContactModal user={selectedUser} onClose={() => setSelectedUser(null)} />
       )}
     </section>
   );
