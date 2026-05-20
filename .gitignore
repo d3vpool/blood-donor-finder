@@ -26,6 +26,9 @@ service-account.json
 .env.development.local
 .env.test.local
 .env.production.local
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
 
 # misc
 .DS_Store

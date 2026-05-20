@@ -1,0 +1,19 @@
+{
+    "indexes": [
+        {
+            "collectionGroup": "Donors",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "bloodType",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "geohash",
+                    "order": "ASCENDING"
+                }
+            ]
+        }
+    ],
+    "fieldOverrides": []
+}

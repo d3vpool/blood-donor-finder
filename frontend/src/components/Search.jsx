@@ -2,9 +2,10 @@
 import "./Search.css";
 import React, { useState } from "react";
 import PropTypes from "prop-types";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, orderBy, startAt, endAt } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { signInAnonymously } from "firebase/auth";
+import { geohashQueryBounds, distanceBetween } from "geofire-common";
 
 export default function Search({ setResults, setRecipientLocation, setUserHasSearched }) {
   const [bloodType, setBloodType] = useState("");
@@ -12,17 +13,12 @@ export default function Search({ setResults, setRecipientLocation, setUserHasSea
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const haversine = (lat1, lon1, lat2, lon2) => {
-    const R = 6371;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) ** 2;
 
-    return R * 2 * Math.asin(Math.sqrt(a));
+
+  const getGeohashBounds = (lat, long, radiusKm) => {
+    const center = [lat, long];
+    const radiusInMeters = radiusKm * 1000;
+    return geohashQueryBounds(center, radiusInMeters);
   };
 
   // Ensures the client is authenticated (anonymous if needed).
@@ -79,48 +75,71 @@ export default function Search({ setResults, setRecipientLocation, setUserHasSea
           const range = Number(rangeKm);
           if (!Number.isFinite(range) || range < 0) throw new Error("Invalid search radius");
 
-          const donorsCol = collection(db, "Donors");
-          const q = query(donorsCol, where("bloodType", "==", bloodType));
-          const snap = await getDocs(q);
+          const queryBounds = getGeohashBounds(latNum, lngNum, range);
 
-          const docs = [];
-          snap.forEach((doc) => {
-            const data = doc.data() || {};
-            docs.push({
-              id: doc.id,
-              fullname: data.fullname ?? data.name ?? "",
-              email: data.email ?? "",
-              phoneNo: data.phoneNo ?? data.contact ?? data.phone ?? "",
-              bloodType: data.bloodType ?? data.bloodGroup ?? "",
-              address: data.address ?? data.city ?? "",
-              location: {
-                latitude:
-                  data.location?.latitude !== undefined
-                    ? Number(data.location.latitude)
-                    : data.location?.lat !== undefined
+          const promises = queryBounds.map((b) => {
+            const q = query(
+              collection(db, "Donors"),
+              where("bloodType", "==", bloodType),
+              orderBy("geohash"),
+              startAt(b[0]),
+              endAt(b[1])
+            );
+            return getDocs(q);
+          });
+
+          const snapshots = await Promise.all(promises);
+
+          const matchingDonors = [];
+          const seenIds = new Set();
+
+          snapshots.forEach((snap) => {
+            snap.forEach((doc) => {
+              if (seenIds.has(doc.id)) return;
+              seenIds.add(doc.id);
+
+              const data = doc.data() || {};
+              const dLat =
+                data.location?.latitude !== undefined
+                  ? Number(data.location.latitude)
+                  : data.location?.lat !== undefined
                     ? Number(data.location.lat)
-                    : null,
-                longitude:
-                  data.location?.longitude !== undefined
-                    ? Number(data.location.longitude)
-                    : data.location?.lng !== undefined
+                    : null;
+              const dLng =
+                data.location?.longitude !== undefined
+                  ? Number(data.location.longitude)
+                  : data.location?.lng !== undefined
                     ? Number(data.location.lng)
-                    : null,
-              },
-              status: data.status ?? data.availability ?? "",
-              registeredAt: data.registeredAt ?? null,
+                    : null;
+
+              if (dLat === null || dLng === null) return;
+
+              // Calculate exact distance using geofire's distanceBetween
+              const dist = distanceBetween([dLat, dLng], [latNum, lngNum]);
+              if (dist <= range) {
+                matchingDonors.push({
+                  id: doc.id,
+                  fullname: data.fullname ?? data.name ?? "",
+                  email: data.email ?? "",
+                  phoneNo: data.phoneNo ?? data.contact ?? data.phone ?? "",
+                  bloodType: data.bloodType ?? data.bloodGroup ?? "",
+                  address: data.address ?? data.city ?? "",
+                  location: {
+                    latitude: dLat,
+                    longitude: dLng,
+                  },
+                  status: data.status ?? data.availability ?? "",
+                  registeredAt: data.registeredAt ?? null,
+                  distance: dist,
+                });
+              }
             });
           });
 
-          const filtered = docs.filter((u) => {
-            const dLat = Number(u.location.latitude);
-            const dLng = Number(u.location.longitude);
-            if (!Number.isFinite(dLat) || !Number.isFinite(dLng)) return false;
-            const dist = haversine(latNum, lngNum, dLat, dLng);
-            return dist <= range;
-          });
+          // Sort by distance (closest first)
+          matchingDonors.sort((a, b) => a.distance - b.distance);
 
-          setResults(filtered);
+          setResults(matchingDonors);
           setUserHasSearched(true);
         } catch (err) {
           console.error("Firestore read error:", err);
