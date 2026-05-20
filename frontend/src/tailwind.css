@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+@theme {
+  --color-orange-primary: #FF6B35;
+  --color-orange-hover: #E55A2B;
+  --color-orange-active: #CC4E22;
+  --color-orange-light: rgba(255, 107, 53, 0.1);
+  
+  --color-brand-red: #e74c3c;
+  --color-brand-red-dark: #c0392b;
+  --color-brand-red-light: rgba(231, 76, 60, 0.1);
+}
