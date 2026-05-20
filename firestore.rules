@@ -16,5 +16,9 @@ service cloud.firestore {
             allow update: if request.auth != null
                          && request.auth.uid == resource.data.fromUid;
         }
+        match /BloodRequests/{reqId}{
+            allow create, read: if request.auth != null;
+            allow update: if request.auth != null && request.auth.uid == resource.data.userId;
+        }
     }
 }

@@ -11,13 +11,14 @@ import Hero from "./components/Hero";
 import Search from "./components/Search";
 import SearchResult from "./components/SearchResult";
 import Register from "./components/Register";
+import RequestBlood from "./components/RequestBlood";
 import About from "./components/About";
 import Footer from "./components/Footer";
 import ContactModal from "./components/ContactModal";
 import DonorMap from "./components/DonorMap";
 import Signup from "./components/SignUp"; // added
 
-import "./styles/global.css";
+
 
 function App() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -179,6 +180,7 @@ function App() {
         {userHasSearched && <SearchResult results={searchResults} focusOn={focusOn} />}
 
         <Register setIsLoginModalOpen={setIsLoginModalOpen} />
+        <RequestBlood setIsLoginModalOpen={setIsLoginModalOpen} />
         <About />
         <Footer />
         <ContactModal />
