@@ -13,6 +13,7 @@ const { setGlobalOptions } = require("firebase-functions");
 const { onRequest } = require("firebase-functions/https");
 const logger = require("firebase-functions/logger");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const { getMessaging } = require("firebase-admin/messaging");
 const { geohashQueryBounds } = require("geofire-common")
 
 initializeApp();
@@ -101,6 +102,54 @@ exports.bloodRequestReceived = onDocumentCreated("BloodRequests/{requestId}", as
         .sort((a, b) => a.distance - b.distance);
 
     await event.data.ref.update({ nearByDonors });
+
+    const tokens = [];
+
+    const tokenPromises = nearByDonors.map(async (donor) => {
+        const tokenDoc = await db.collection("UserTokens").doc(donor.id).get();
+
+        if (tokenDoc.exists) {
+            const data = tokenDoc.data();
+            if (data.fcmTokens && Array.isArray(data.fcmTokens)) {
+                tokens.push(...data.fcmTokens);
+            }
+        }
+    })
+
+    await Promise.all(tokenPromises);
+
+    console.log(`Found ${tokens.length} FCM tokens to notify`);
+
+
+    if (tokens.length > 0) {
+        const message = {
+            notification: {
+                title: "Urgent Blood Request",
+                body: `${patientName} needs ${bloodType} blood urgently! (${urgency} priority)`,
+            },
+            tokens: tokens
+        };
+
+        try {
+            const response = await getMessaging().sendEachForMulticast(message);
+            console.log(`${response.successCount} messages were sent successfully`);
+            
+            if (response.failureCount > 0) {
+                const failedTokens = [];
+                response.responses.forEach((resp, idx) => {
+                    if (!resp.success) {
+                        failedTokens.push(tokens[idx]);
+                    }
+                });
+                console.log('List of tokens that caused failures: ' + failedTokens);
+                // Optional: Remove these failed tokens from the UserTokens collection here
+            }
+        } catch (error) {
+            console.log("Error Sending Multicast Message:", error);
+        }
+    }
+
+
 
     console.log(`Founded ${nearByDonors.length} donors within ${RADIUS_KM}km`, nearByDonors)
 })
