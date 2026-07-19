@@ -62,6 +62,7 @@ function Header({ isLoginModalOpen, setIsLoginModalOpen }) {
                 <li><a href="#search" className="font-medium py-2 px-3 transition-all duration-300 text-white inline-block hover:bg-brand-red hover:text-white hover:rounded-md animate-duration-300">Find Donors</a></li>
                 <li><a href="#register" className="font-medium py-2 px-3 transition-all duration-300 text-white inline-block hover:bg-brand-red hover:text-white hover:rounded-md animate-duration-300">Register</a></li>
                 <li><a href="#request-blood" className="font-medium py-2 px-3 transition-all duration-300 text-white inline-block hover:bg-brand-red hover:text-white hover:rounded-md animate-duration-300">Request Blood</a></li>
+                {user && <li><a href="#donor-inbox" className="font-medium py-2 px-3 transition-all duration-300 text-white inline-block hover:bg-brand-red hover:text-white hover:rounded-md animate-duration-300">Requests For You</a></li>}
                 <li><a href="#about" className="font-medium py-2 px-3 transition-all duration-300 text-white inline-block hover:bg-brand-red hover:text-white hover:rounded-md animate-duration-300">About</a></li>
                 <li><a href="tel:011-23359379" className="border-2 border-brand-red text-brand-red py-2 px-4 rounded-lg text-decoration-none bg-transparent hover:bg-brand-red hover:text-white transition-all duration-300">Emergency</a></li>
               </ul>

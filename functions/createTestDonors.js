@@ -3,14 +3,14 @@ const admin = require("firebase-admin");
 process.env.FIRESTORE_EMULATOR_HOST = "localhost:8080";
 
 admin.initializeApp({
-  projectId: "blood-donor-finder-744dd"
+  projectId: "blood-donor-finder-744dd",
 });
 
 const db = admin.firestore();
 
 async function main() {
   console.log("Seeding test donors...");
-  
+
   const donors = [
     {
       fullname: "John Doe",
@@ -20,9 +20,9 @@ async function main() {
       address: "New York, NY",
       location: {
         latitude: 40.7128,
-        longitude: -74.0060
+        longitude: -74.0060,
       },
-      registeredAt: new Date().toISOString()
+      registeredAt: new Date().toISOString(),
     },
     {
       fullname: "Jane Smith",
@@ -32,10 +32,10 @@ async function main() {
       address: "Los Angeles, CA",
       location: {
         latitude: 34.0522,
-        longitude: -118.2437
+        longitude: -118.2437,
       },
-      registeredAt: new Date().toISOString()
-    }
+      registeredAt: new Date().toISOString(),
+    },
   ];
 
   for (let i = 0; i < donors.length; i++) {
@@ -48,7 +48,7 @@ async function main() {
   process.exit(0);
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error("Seeding error:", err);
   process.exit(1);
 });

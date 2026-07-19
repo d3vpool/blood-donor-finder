@@ -17,6 +17,8 @@ import Footer from "./components/Footer";
 import ContactModal from "./components/ContactModal";
 import DonorMap from "./components/DonorMap";
 import Signup from "./components/SignUp"; // added
+import ActiveRequests from "./components/ActiveRequests";
+import DonorInbox from "./components/DonorInbox";
 
 
 
@@ -39,39 +41,39 @@ function App() {
   const [notificationToken, setNotificationToken] = useState(null);
 
   useEffect(() => {
-      // initialize messaging service worker + messaging instance once
-      // (we call initMessaging with default app which you export from ./firebase)
-      initMessaging().catch((e) => {
-        console.warn("initMessaging failed:", e);
-      });
+    // initialize messaging service worker + messaging instance once
+    // (we call initMessaging with default app which you export from ./firebase)
+    initMessaging().catch((e) => {
+      console.warn("initMessaging failed:", e);
+    });
 
-      // register for auth changes; when user signs in, register FCM token
-      const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        console.log('onAuthStateChanged fired. auth:', auth);
-        console.log('onAuthStateChanged fired. user (raw):', user);
-        // defensive: if user exists but uid is missing, log that explicitly
-        if (user && typeof user.uid === 'undefined') {
-          console.warn('onAuthStateChanged: user object has no uid property:', user);
+    // register for auth changes; when user signs in, register FCM token
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log('onAuthStateChanged fired. auth:', auth);
+      console.log('onAuthStateChanged fired. user (raw):', user);
+      // defensive: if user exists but uid is missing, log that explicitly
+      if (user && typeof user.uid === 'undefined') {
+        console.warn('onAuthStateChanged: user object has no uid property:', user);
+      }
+
+      if (user) {
+        try {
+          // pass the uid explicitly so setupAutoRegistration doesn't throw
+          await setupAutoRegistration({ uid: user.uid });
+        } catch (e) {
+          console.warn("setupAutoRegistration failed:", e);
         }
-
-        if (user) {
-          try {
-            // pass the uid explicitly so setupAutoRegistration doesn't throw
-            await setupAutoRegistration({ uid: user.uid });
-          } catch (e) {
-            console.warn("setupAutoRegistration failed:", e);
-          }
-        } else {
-          // user signed out - token cleanup already handled elsewhere (Register.jsx), but you can do extra cleanup here if desired
-        }
-      });
+      } else {
+        // user signed out - token cleanup already handled elsewhere (Register.jsx), but you can do extra cleanup here if desired
+      }
+    });
 
 
 
-      return () => {
-        try { unsubscribe(); } catch(_) {}
-      };
-    }, []);
+    return () => {
+      try { unsubscribe(); } catch (_) { }
+    };
+  }, []);
 
   // Firebase Cloud Messaging integration
   useEffect(() => {
@@ -90,7 +92,7 @@ function App() {
     // Register foreground message listener
     const unsubscribe = onForegroundMessage((payload) => {
       console.log('Foreground message received:', payload);
-      
+
       // Show alert with notification title/body if available
       if (payload.notification) {
         const title = payload.notification.title || 'New Notification';
@@ -114,7 +116,7 @@ function App() {
       pendingFocusRef.current.forEach(({ lat, lng, zoom }) => {
         try {
           controller.focusOn(lat, lng, zoom);
-        } catch (_) {}
+        } catch (_) { }
       });
       pendingFocusRef.current = [];
     }
@@ -136,18 +138,18 @@ function App() {
       <div>
         {/* Debug: Display notification token */}
         {notificationToken && (
-          <div style={{ 
-            position: 'fixed', 
-            top: '60px', 
-            left: '10px', 
-            background: 'rgba(0,0,0,0.8)', 
-            color: 'white', 
-            padding: '10px', 
-            borderRadius: '5px', 
-            fontSize: '10px', 
-            maxWidth: '300px', 
+          <div style={{
+            position: 'fixed',
+            top: '60px',
+            left: '10px',
+            background: 'rgba(0,0,0,0.8)',
+            color: 'white',
+            padding: '10px',
+            borderRadius: '5px',
+            fontSize: '10px',
+            maxWidth: '300px',
             wordBreak: 'break-all',
-            zIndex: 9999 
+            zIndex: 9999
           }}>
             <strong>FCM Token:</strong><br />
             {notificationToken}
@@ -181,6 +183,8 @@ function App() {
 
         <Register setIsLoginModalOpen={setIsLoginModalOpen} />
         <RequestBlood setIsLoginModalOpen={setIsLoginModalOpen} />
+        <ActiveRequests />
+        <DonorInbox />
         <About />
         <Footer />
         <ContactModal />

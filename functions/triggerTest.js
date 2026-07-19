@@ -3,10 +3,10 @@
 
 process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
 
-const { initializeApp } = require("firebase-admin/app");
-const { getFirestore } = require("firebase-admin/firestore");
+const {initializeApp} = require("firebase-admin/app");
+const {getFirestore} = require("firebase-admin/firestore");
 
-initializeApp({ projectId: "blood-donor-finder-744dd" });
+initializeApp({projectId: "blood-donor-finder-744dd"});
 const db = getFirestore();
 
 async function main() {
@@ -15,7 +15,7 @@ async function main() {
     bloodType: "O+",
     urgency: "Critical",
     geoHash: "tdrlw",
-    location: { latitude: 12.9716, longitude: 77.5946 },
+    location: {latitude: 12.9716, longitude: 77.5946},
     contactPhone: "1234567889",
     hospitalName: "Test H",
     hospitalAddress: "Test A",

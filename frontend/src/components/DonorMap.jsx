@@ -1,203 +1,175 @@
 // src/components/DonorMap.jsx
-import React, { useEffect, useRef, useState } from "react";
-import { GoogleMap, useJsApiLoader } from "@react-google-maps/api";
+import React, { useEffect } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
-const containerStyle = { width: "100%", height: "400px" };
+// Fix Leaflet's broken default icon paths when bundled with webpack/CRA
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
+  iconUrl: require("leaflet/dist/images/marker-icon.png"),
+  shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
+});
 
-export default function DonorMap({
-  recipientLocation,
-  donors = [],
-  setMapController
-}) {
-  const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
-  const { isLoaded, loadError } = useJsApiLoader({ googleMapsApiKey: apiKey });
+// Blue marker — user's location
+const userIcon = new L.Icon({
+  iconUrl:
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
+  shadowUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
 
-  const escapeHtml = (str) => {
-  if (!str && str !== "") return "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-  };
+// Red marker — donors
+const donorIcon = new L.Icon({
+  iconUrl:
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+  shadowUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
 
+/**
+ * Inner component — must live inside <MapContainer> to use useMap().
+ * Handles: pan-to-location on search, and exposing focusOn to parent.
+ */
+function MapController({ recipientLocation, setMapController }) {
+  const map = useMap();
 
-  const mapRef = useRef(null);
-  const markersRef = useRef([]);
-  const infoWindowRef = useRef(null);
-  const [mapReady, setMapReady] = useState(false);
-
-  const normalized = (() => {
-    if (!recipientLocation) return null;
-
-    const latRaw =
-      recipientLocation.lat ??
-      recipientLocation.latitude ??
-      (recipientLocation.coords && recipientLocation.coords.latitude);
-
-    const lngRaw =
-      recipientLocation.lng ??
-      recipientLocation.longitude ??
-      (recipientLocation.coords && recipientLocation.coords.longitude);
-
-    const lat = Number(latRaw);
-    const lng = Number(lngRaw);
-
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-
-    return { lat, lng };
-  })();
-
+  // Expose focusOn so SearchResult card clicks can pan the map
   useEffect(() => {
-    console.log("DonorMap input recipientLocation:", recipientLocation);
-    console.log("DonorMap normalized:", normalized);
-  }, [recipientLocation]);
-
-  useEffect(() => {
-    if (!isLoaded || !mapReady || !mapRef.current) return;
-
-    const map = mapRef.current;
-
-    markersRef.current.forEach((m) => m.setMap(null));
-    markersRef.current = [];
-
-    if (!infoWindowRef.current)
-      infoWindowRef.current = new window.google.maps.InfoWindow();
-    else infoWindowRef.current.close();
-
-    if (normalized) {
-      const userMarker = new window.google.maps.Marker({
-        position: normalized,
-        map,
-        icon: "https://maps.gstatic.com/mapfiles/ms2/micons/blue-dot.png",
-        title: "Your Location",
-      });
-      markersRef.current.push(userMarker);
-
-      map.setCenter(normalized);
-      map.setZoom(13);
-    } else {
-      console.warn("normalized is null — skipping setCenter");
-    }
-
-    donors.forEach((d) => {
-      const lat = Number(d.location?.latitude ?? d.location?.lat);
-      const lng = Number(d.location?.longitude ?? d.location?.lng);
-
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-
-      const pos = { lat, lng };
-
-      const m = new window.google.maps.Marker({
-        position: pos,
-        map,
-        title: d.fullname,
-      });
-
-      m.addListener("click", () => {
-        const gmapsUrl = `https://www.google.com/maps?q=${pos.lat},${pos.lng}`;
-
-        infoWindowRef.current.setContent(`
-          <div style="min-width:220px">
-            <div><strong>${escapeHtml(d.fullname || "Donor")}</strong></div>
-            <div style="font-size:13px;color:#555">${escapeHtml(d.email || "")}</div>
-                
-            <div style="margin-top:6px">
-              <a href="${gmapsUrl}" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                style="color:#1a73e8; font-weight:600; text-decoration:none;">
-                View on Google Maps
-              </a>
-            </div>
-          </div>
-        `);
-        infoWindowRef.current.open(map, m);
-      });
-
-      markersRef.current.push(m);
-    });
-  }, [isLoaded, mapReady, donors, normalized]);
-
-  useEffect(() => {
-    if (!isLoaded || !mapReady || !mapRef.current) {
-      setMapController(null);
-      return;
-    }
-
     setMapController({
-      focusOn: (lat, lng) => {
-        const map = mapRef.current;
-
-        const pos = { lat: Number(lat), lng: Number(lng) };
-        if (!Number.isFinite(pos.lat) || !Number.isFinite(pos.lng)) {
-          console.warn("focusOn received invalid coords:", pos);
-          return;
+      focusOn: (lat, lng, zoom = 15) => {
+        const pos = [Number(lat), Number(lng)];
+        if (Number.isFinite(pos[0]) && Number.isFinite(pos[1])) {
+          map.flyTo(pos, zoom, { duration: 0.8 });
         }
-
-        map.panTo(pos);
-        map.setZoom(15);
-
-        const marker = markersRef.current.find((m) => {
-          const p = m.getPosition().toJSON();
-          return p.lat === pos.lat && p.lng === pos.lng;
-        });
-
-        if (marker) {
-          const donor = donors.find(
-            (d) =>
-              Number(d.location.latitude) === pos.lat &&
-              Number(d.location.longitude) === pos.lng
-          );
-          if (donor) {
-            const gmapsUrl = `https://www.google.com/maps?q=${pos.lat},${pos.lng}`;
-
-            infoWindowRef.current.setContent(`
-              <div style="min-width:220px">
-                <div><strong>${escapeHtml(donor.fullname || "Donor")}</strong></div>
-                <div style="font-size:13px;color:#555">${escapeHtml(donor.email || "")}</div>
-                
-                <div style="margin-top:6px">
-                  <a href="${gmapsUrl}" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style="color:#1a73e8; font-weight:600; text-decoration:none;">
-                    View on Google Maps
-                  </a>
-                </div>
-              </div>
-            `);
-
-            infoWindowRef.current.open(map, marker);
-          }
-        }
-
-        // No direct DOM scrolling here; SearchResult triggers scroll.
       },
     });
-
     return () => setMapController(null);
-  }, [isLoaded, mapReady, donors]);
+  }, [map, setMapController]);
 
-  if (loadError) return <div>Map failed to load</div>;
-  if (!isLoaded) return null;
+  // Pan to recipient's location whenever a new search is performed
+  useEffect(() => {
+    if (recipientLocation) {
+      map.setView([recipientLocation.lat, recipientLocation.lng], 13);
+    }
+  }, [recipientLocation, map]);
+
+  return null;
+}
+
+export default function DonorMap({ recipientLocation, donors = [], setMapController }) {
+  // Initial map center — Bangalore as sensible default for India
+  const defaultCenter = [12.9716, 77.5946];
 
   return (
-    <div id="donorMapContainer" style={{ width: "100%" }}>
-      <GoogleMap
-        mapContainerStyle={containerStyle}
-        center={normalized || { lat: 12.9716, lng: 77.5946 }}
-        zoom={normalized ? 13 : 11}
-        onLoad={(m) => {
-          mapRef.current = m;
-          setMapReady(true);
-        }}
-        onUnmount={() => {
-          mapRef.current = null;
-          setMapReady(false);
-        }}
-      />
+    <div id="donorMapContainer" style={{ width: "100%", height: "420px" }}>
+      <MapContainer
+        center={defaultCenter}
+        zoom={11}
+        style={{ width: "100%", height: "100%" }}
+        scrollWheelZoom={true}
+      >
+        {/* OpenStreetMap tiles — completely free, no API key */}
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+
+        {/* Handles panning + exposes focusOn controller */}
+        <MapController
+          recipientLocation={recipientLocation}
+          setMapController={setMapController}
+        />
+
+        {/* User location — blue pin */}
+        {recipientLocation && (
+          <Marker
+            position={[recipientLocation.lat, recipientLocation.lng]}
+            icon={userIcon}
+          >
+            <Popup>
+              <strong>📍 Your Location</strong>
+            </Popup>
+          </Marker>
+        )}
+
+        {/* Donor markers — red pins */}
+        {donors.map((donor, idx) => {
+          const lat = Number(
+            donor.location?.latitude ?? donor.location?.lat
+          );
+          const lng = Number(
+            donor.location?.longitude ?? donor.location?.lng
+          );
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+          const gmapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+
+          return (
+            <Marker key={donor.id || idx} position={[lat, lng]} icon={donorIcon}>
+              <Popup>
+                <div style={{ minWidth: "190px", lineHeight: "1.5" }}>
+                  <div>
+                    <strong style={{ fontSize: "14px" }}>
+                      {donor.fullname || "Donor"}
+                    </strong>
+                  </div>
+                  {donor.bloodType && (
+                    <div
+                      style={{
+                        display: "inline-block",
+                        background: "#fee2e2",
+                        color: "#b91c1c",
+                        fontWeight: 700,
+                        fontSize: "12px",
+                        padding: "1px 8px",
+                        borderRadius: "999px",
+                        margin: "4px 0",
+                      }}
+                    >
+                      {donor.bloodType}
+                    </div>
+                  )}
+                  {donor.email && (
+                    <div style={{ fontSize: "12px", color: "#555" }}>
+                      ✉️ {donor.email}
+                    </div>
+                  )}
+                  {donor.phoneNo && (
+                    <div style={{ fontSize: "12px", color: "#555" }}>
+                      📞 {donor.phoneNo}
+                    </div>
+                  )}
+                  <div style={{ marginTop: "8px" }}>
+                    <a
+                      href={gmapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        color: "#1a73e8",
+                        fontWeight: 600,
+                        fontSize: "12px",
+                        textDecoration: "none",
+                      }}
+                    >
+                      View on Google Maps ↗
+                    </a>
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+      </MapContainer>
     </div>
   );
 }

@@ -55,7 +55,7 @@ export default function Search({ setResults, setRecipientLocation, setUserHasSea
           if (!Number.isFinite(range) || range < 0) throw new Error("Invalid search radius");
           const queryBounds = getGeohashBounds(latNum, lngNum, range);
           const promises = queryBounds.map((b) => {
-            const q = query(collection(db, "Donors"), where("bloodType", "==", bloodType), orderBy("geohash"), startAt(b[0]), endAt(b[1]));
+            const q = query(collection(db, "Donors"), where("bloodType", "==", bloodType), orderBy("geoHash"), startAt(b[0]), endAt(b[1]));
             return getDocs(q);
           });
           const snapshots = await Promise.all(promises);
@@ -126,8 +126,7 @@ export default function Search({ setResults, setRecipientLocation, setUserHasSea
               <select value={rangeKm} onChange={(e) => setRangeKm(Number(e.target.value))} className={selectClass}>
                 <option value={5}>5 km</option>
                 <option value={10}>10 km</option>
-                <option value={20}>20 km</option>
-                <option value={30}>30 km</option>
+                <option value={15}>15 km</option>
               </select>
             </div>
           </div>

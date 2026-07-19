@@ -7,14 +7,14 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
-const { initializeApp } = require("firebase-admin/app");
-const { getFirestore } = require("firebase-admin/firestore");
-const { setGlobalOptions } = require("firebase-functions");
-const { onRequest } = require("firebase-functions/https");
+const {initializeApp} = require("firebase-admin/app");
+const {getFirestore} = require("firebase-admin/firestore");
+const {setGlobalOptions} = require("firebase-functions");
+const {onRequest} = require("firebase-functions/https");
 const logger = require("firebase-functions/logger");
-const { onDocumentCreated } = require("firebase-functions/v2/firestore");
-const { getMessaging } = require("firebase-admin/messaging");
-const { geohashQueryBounds } = require("geofire-common")
+const {onDocumentCreated} = require("firebase-functions/v2/firestore");
+const {getMessaging} = require("firebase-admin/messaging");
+const {geohashQueryBounds} = require("geofire-common");
 
 initializeApp();
 // For cost control, you can set the maximum number of containers that can be
@@ -27,7 +27,7 @@ initializeApp();
 // functions should each use functions.runWith({ maxInstances: 10 }) instead.
 // In the v1 API, each function can only serve one request per container, so
 // this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
+setGlobalOptions({maxInstances: 10});
 
 // Create and deploy your first functions
 // https://firebase.google.com/docs/functions/get-started
@@ -40,116 +40,118 @@ setGlobalOptions({ maxInstances: 10 });
 const RADIUS_KM = 10;
 
 function haversineDistance(lat1, lng1, lat2, lng2) {
-    const R = 6371;
+  const R = 6371;
 
-    const toRad = (deg) => (deg * Math.PI) / 180;
+  const toRad = (deg) => (deg * Math.PI) / 180;
 
-    const dLat = toRad(lat2 - lat1);
-    const dLng = toRad(lng2 - lng1);
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
 
-    const a =
+  const a =
         Math.sin(dLat / 2) ** 2 +
         Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
         Math.sin(dLng / 2) ** 2;
 
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-    return R * c;
+  return R * c;
 }
 
 
 exports.bloodRequestReceived = onDocumentCreated("BloodRequests/{requestId}", async (event) => {
-    const patientName = event.data.data().patientName;
-    const bloodType = event.data.data().bloodType;
-    const geoHash = event.data.data().geoHash;
-    const urgency = event.data.data().urgency;
-    const { latitude, longitude } = event.data.data().location;
+  const patientName = event.data.data().patientName;
+  const bloodType = event.data.data().bloodType;
+  const geoHash = event.data.data().geoHash;
+  const urgency = event.data.data().urgency;
+  const {latitude, longitude} = event.data.data().location;
 
-    logger.log(`Blood request from ${patientName} (${bloodType}) at ${geoHash}`);
-    logger.log(`Urgency: ${urgency}`);
-    logger.log(`Location: ${latitude}, ${longitude}`);
+  logger.log(`Blood request from ${patientName} (${bloodType}) at ${geoHash}`);
+  logger.log(`Urgency: ${urgency}`);
+  logger.log(`Location: ${latitude}, ${longitude}`);
 
-    const center = [latitude, longitude];
-    const db = getFirestore();
+  const center = [latitude, longitude];
+  const db = getFirestore();
 
-    const bounds = geohashQueryBounds(center, RADIUS_KM * 1000);
+  const bounds = geohashQueryBounds(center, RADIUS_KM * 1000);
 
-    const promises = bounds.map(([start, end]) =>
-        db.collection('Donors')
-            .where('bloodType', '==', bloodType)
-            .orderBy('geoHash')
-            .startAt(start)
-            .endAt(end)
-            .get()
-    );
+  const promises = bounds.map(([start, end]) =>
+    db.collection("Donors")
+        .where("bloodType", "==", bloodType)
+        .orderBy("geoHash")
+        .startAt(start)
+        .endAt(end)
+        .get(),
+  );
 
-    const snapshots = await Promise.all(promises);
-
-
-    const candidates = [];
-    snapshots.forEach(snap => {
-        snap.docs.forEach(doc => {
-            candidates.push({ id: doc.id, ...doc.data() });
-        })
-    })
-
-    const nearByDonors = candidates
-        .map(donor => ({
-            ...donor,
-            distance: haversineDistance(latitude, longitude, donor.location.latitude, donor.location.longitude)
-        }))
-        .filter(donor => donor.distance < RADIUS_KM)
-        .sort((a, b) => a.distance - b.distance);
-
-    await event.data.ref.update({ nearByDonors });
-
-    const tokens = [];
-
-    const tokenPromises = nearByDonors.map(async (donor) => {
-        const tokenDoc = await db.collection("UserTokens").doc(donor.id).get();
-
-        if (tokenDoc.exists) {
-            const data = tokenDoc.data();
-            if (data.fcmTokens && Array.isArray(data.fcmTokens)) {
-                tokens.push(...data.fcmTokens);
-            }
-        }
-    })
-
-    await Promise.all(tokenPromises);
-
-    console.log(`Found ${tokens.length} FCM tokens to notify`);
+  const snapshots = await Promise.all(promises);
 
 
-    if (tokens.length > 0) {
-        const message = {
-            notification: {
-                title: "Urgent Blood Request",
-                body: `${patientName} needs ${bloodType} blood urgently! (${urgency} priority)`,
-            },
-            tokens: tokens
-        };
+  const candidates = [];
+  snapshots.forEach((snap) => {
+    snap.docs.forEach((doc) => {
+      const data = doc.data();
+      if (!data.snoozedUntil || data.snoozedUntil < Date.now()) {
+        candidates.push({id: doc.id, ...data});
+      }
+    });
+  });
 
-        try {
-            const response = await getMessaging().sendEachForMulticast(message);
-            console.log(`${response.successCount} messages were sent successfully`);
-            
-            if (response.failureCount > 0) {
-                const failedTokens = [];
-                response.responses.forEach((resp, idx) => {
-                    if (!resp.success) {
-                        failedTokens.push(tokens[idx]);
-                    }
-                });
-                console.log('List of tokens that caused failures: ' + failedTokens);
-                // Optional: Remove these failed tokens from the UserTokens collection here
-            }
-        } catch (error) {
-            console.log("Error Sending Multicast Message:", error);
-        }
+  const nearByDonors = candidates
+      .map((donor) => ({
+        ...donor,
+        distance: haversineDistance(latitude, longitude, donor.location.latitude, donor.location.longitude),
+      }))
+      .filter((donor) => donor.distance < RADIUS_KM)
+      .sort((a, b) => a.distance - b.distance);
+
+  await event.data.ref.update({nearByDonors});
+
+  const tokens = [];
+
+  const tokenPromises = nearByDonors.map(async (donor) => {
+    const tokenDoc = await db.collection("UserTokens").doc(donor.id).get();
+
+    if (tokenDoc.exists) {
+      const data = tokenDoc.data();
+      if (data.fcmTokens && Array.isArray(data.fcmTokens)) {
+        tokens.push(...data.fcmTokens);
+      }
     }
+  });
+
+  await Promise.all(tokenPromises);
+
+  console.log(`Found ${tokens.length} FCM tokens to notify`);
 
 
+  if (tokens.length > 0) {
+    const message = {
+      notification: {
+        title: "Urgent Blood Request",
+        body: `${patientName} needs ${bloodType} blood urgently! (${urgency} priority)`,
+      },
+      tokens: tokens,
+    };
 
-    console.log(`Founded ${nearByDonors.length} donors within ${RADIUS_KM}km`, nearByDonors)
-})
+    try {
+      const response = await getMessaging().sendEachForMulticast(message);
+      console.log(`${response.successCount} messages were sent successfully`);
+
+      if (response.failureCount > 0) {
+        const failedTokens = [];
+        response.responses.forEach((resp, idx) => {
+          if (!resp.success) {
+            failedTokens.push(tokens[idx]);
+          }
+        });
+        console.log("List of tokens that caused failures: " + failedTokens);
+        // Optional: Remove these failed tokens from the UserTokens collection here
+      }
+    } catch (error) {
+      console.log("Error Sending Multicast Message:", error);
+    }
+  }
+
+
+  console.log(`Founded ${nearByDonors.length} donors within ${RADIUS_KM}km`, nearByDonors);
+});

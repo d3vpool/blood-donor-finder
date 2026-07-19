@@ -1,6 +1,6 @@
 // src/components/Register.jsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { setDoc, doc, getDoc } from "firebase/firestore";
+import { setDoc, doc, getDoc, updateDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { registerTokenForUser, removeTokenForUser } from "../firebaseMessaging";
@@ -23,14 +23,33 @@ function Register({ setIsLoginModalOpen }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isDonor, setIsDonor] = useState(false);
+  const [snoozedUntil, setSnoozedUntil] = useState(null);
   const lastUidRef = useRef(null);
 
   const resetDonorForm = useCallback(() => {
     setDonorFullname(initialState.donorFullname); setDonorEmail(initialState.donorEmail); setDonorPhoneNo(initialState.donorPhoneNo);
     setDonorBloodtype(initialState.donorBloodtype); setDonorAddress(initialState.donorAddress); setLocation(initialState.location);
     setLocationError(initialState.locationError); setIsDonor(false);
-    try { localStorage.removeItem("geoAllowed"); localStorage.removeItem("recipientLocation"); } catch (_) {}
+    try { localStorage.removeItem("geoAllowed"); localStorage.removeItem("recipientLocation"); } catch (_) { }
   }, []);
+
+  async function snooze() {
+    const snoozeTime = Date.now() + 30 * 24 * 60 * 60 * 1000; //30days in ms
+    await updateDoc(doc(db, "Donors", auth.currentUser.uid), {
+      snoozedUntil: snoozeTime
+    })
+    setSnoozedUntil(snoozeTime);
+    toast.success("Snoozed for 30 days", { position: "top-center" })
+  }
+
+  async function markAsAvailable() {
+    await updateDoc(doc(db, "Donors", auth.currentUser.uid), {
+      snoozedUntil: null
+    })
+    setSnoozedUntil(null);
+    toast.success("Marked as available", { position: "top-center" })
+  }
+
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -42,7 +61,15 @@ function Register({ setIsLoginModalOpen }) {
       if (currentUser) {
         lastUidRef.current = currentUser.uid; setDonorEmail(currentUser.email || "");
         try { const d = await getDoc(doc(db, "Users", currentUser.uid)); if (d.exists()) setDonorFullname(d.data().fullname || ""); } catch (e) { console.warn("Failed to read Users doc:", e); }
-        try { const d = await getDoc(doc(db, "Donors", currentUser.uid)); setIsDonor(Boolean(d.exists())); } catch (e) { console.warn("Failed to read Donors doc:", e); setIsDonor(false); }
+        try { 
+          const d = await getDoc(doc(db, "Donors", currentUser.uid)); 
+          if (d.exists()) {
+            setIsDonor(true);
+            setSnoozedUntil(d.data().snoozedUntil || null);
+          } else {
+            setIsDonor(false);
+          }
+        } catch (e) { console.warn("Failed to read Donors doc:", e); setIsDonor(false); }
       }
     });
     return () => unsubscribe();
@@ -56,7 +83,7 @@ function Register({ setIsLoginModalOpen }) {
         const latNum = Number(position.coords.latitude); const lngNum = Number(position.coords.longitude);
         if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) { setLocationError("Invalid coordinates received."); toast.error("Invalid location coordinates", { position: "top-center" }); return; }
         setLocation({ latitude: latNum, longitude: lngNum }); setLocationError("");
-        try { localStorage.setItem("geoAllowed", "true"); localStorage.setItem("recipientLocation", JSON.stringify({ lat: latNum, lng: lngNum })); } catch (_) {}
+        try { localStorage.setItem("geoAllowed", "true"); localStorage.setItem("recipientLocation", JSON.stringify({ lat: latNum, lng: lngNum })); } catch (_) { }
         toast.success("Location access granted!", { position: "top-center" });
       },
       (error) => {
@@ -79,7 +106,7 @@ function Register({ setIsLoginModalOpen }) {
       await setDoc(donorDocRef, { fullname: donorFullname || "", email: currentUser.email || "", phoneNo: donorPhoneNo || "", bloodType: donorBloodtype || "", address: donorAddress || "", location: { latitude: Number(location.latitude), longitude: Number(location.longitude) }, geoHash: encodeGeoHash(Number(location.latitude), Number(location.longitude)), registeredAt: new Date().toISOString() });
       toast.success("Donor Registered Successfully!", { position: "top-center" }); setIsDonor(true);
       try { await registerTokenForUser(currentUser.uid); toast.info("Notification token saved.", { position: "top-center" }); } catch (tokenErr) { console.warn("Failed to register FCM token:", tokenErr); }
-      try { if (typeof setIsLoginModalOpen === "function") setIsLoginModalOpen(false); } catch (_) {}
+      try { if (typeof setIsLoginModalOpen === "function") setIsLoginModalOpen(false); } catch (_) { }
     } catch (error) { console.error("Registration error:", error); toast.error("Failed to register as donor. Try again.", { position: "top-center" }); }
   };
 
@@ -105,9 +132,44 @@ function Register({ setIsLoginModalOpen }) {
   if (isDonor) return (
     <section id="register" className={sectionClass}>
       <div className={containerClass}>
-        <h2 className="text-3xl font-bold mb-3">Donor Status</h2>
-        <p className="text-green-600 font-semibold text-lg mb-2">✅ You are already registered as a donor!</p>
-        <p className="text-gray-600">Thank you for being a hero and helping save lives.</p>
+        <div className="bg-white border border-green-100 shadow-sm rounded-2xl p-8 max-w-lg mx-auto relative overflow-hidden">
+          
+          {/* Status Badge */}
+          <div className="absolute top-5 right-5">
+            {snoozedUntil && snoozedUntil > Date.now() ? (
+              <span className="flex items-center gap-1.5 bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-semibold border border-gray-200 shadow-sm transition-all" title="You will not receive emergency alerts">
+                <span className="text-base">💤</span> Snoozed
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold border border-green-200 shadow-sm transition-all" title="You are visible to nearby emergencies">
+                <span className="text-base">👁️</span> Available
+              </span>
+            )}
+          </div>
+
+          <div className="text-5xl mb-4 mt-2">💚</div>
+          <h2 className="text-3xl font-bold mb-3 text-gray-800">Donor Status</h2>
+          <p className="text-green-600 font-semibold text-lg mb-2">You are registered as an active donor!</p>
+          <p className="text-gray-600 mb-8">Thank you for being a hero and helping save lives in your community.</p>
+          
+          <div className="border-t border-gray-100 pt-6">
+            <p className="text-sm font-semibold text-gray-700 mb-4">Manage Availability</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button 
+                onClick={() => markAsAvailable()}
+                className="py-2.5 px-5 bg-green-50 text-green-700 font-semibold rounded-lg hover:bg-green-100 transition-colors border border-green-200"
+              >
+                ✓ Active (Available)
+              </button>
+              <button 
+                onClick={() => snooze()}
+                className="py-2.5 px-5 bg-gray-50 text-gray-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
+              >
+                💤 Snooze 30 Days
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -139,7 +201,7 @@ function Register({ setIsLoginModalOpen }) {
               <label htmlFor="donorBloodType" className={labelClass}>Blood Type*</label>
               <select id="donorBloodType" className={inputClass} required value={donorBloodtype} onChange={(e) => setDonorBloodtype(e.target.value)}>
                 <option value="">Select Blood Group</option>
-                {["A+","A-","B+","B-","AB+","AB-","O+","O-"].map(t => <option key={t} value={t}>{t}</option>)}
+                {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
           </div>
