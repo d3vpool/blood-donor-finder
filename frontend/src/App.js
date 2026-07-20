@@ -16,11 +16,10 @@ import About from "./components/About";
 import Footer from "./components/Footer";
 import ContactModal from "./components/ContactModal";
 import DonorMap from "./components/DonorMap";
-import Signup from "./components/SignUp"; // added
+import Signup from "./components/SignUp";
 import ActiveRequests from "./components/ActiveRequests";
 import DonorInbox from "./components/DonorInbox";
-
-
+import Modal from "./components/modal";
 
 function App() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -32,17 +31,37 @@ function App() {
 
   const [searchResults, setSearchResults] = useState([]);
   const [recipientLocation, setRecipientLocation] = useState(null);
-
   const [userHasSearched, setUserHasSearched] = useState(false);
 
   const [mapController, setMapControllerState] = useState(null);
   const pendingFocusRef = useRef([]);
 
   const [notificationToken, setNotificationToken] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [activeNotification, setActiveNotification] = useState(null);
+  const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
+
+  // Check notification permission state on mount
+  useEffect(() => {
+    if ('Notification' in window) {
+      if (Notification.permission === 'default') {
+        setShowPermissionPrompt(true);
+      }
+    }
+  }, []);
+
+  // Auto-dismiss foreground notification banner after 7 seconds
+  useEffect(() => {
+    if (activeNotification) {
+      const timer = setTimeout(() => {
+        setActiveNotification(null);
+      }, 7000);
+      return () => clearTimeout(timer);
+    }
+  }, [activeNotification]);
 
   useEffect(() => {
     // initialize messaging service worker + messaging instance once
-    // (we call initMessaging with default app which you export from ./firebase)
     initMessaging().catch((e) => {
       console.warn("initMessaging failed:", e);
     });
@@ -51,24 +70,18 @@ function App() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('onAuthStateChanged fired. auth:', auth);
       console.log('onAuthStateChanged fired. user (raw):', user);
-      // defensive: if user exists but uid is missing, log that explicitly
       if (user && typeof user.uid === 'undefined') {
         console.warn('onAuthStateChanged: user object has no uid property:', user);
       }
 
       if (user) {
         try {
-          // pass the uid explicitly so setupAutoRegistration doesn't throw
           await setupAutoRegistration({ uid: user.uid });
         } catch (e) {
           console.warn("setupAutoRegistration failed:", e);
         }
-      } else {
-        // user signed out - token cleanup already handled elsewhere (Register.jsx), but you can do extra cleanup here if desired
       }
     });
-
-
 
     return () => {
       try { unsubscribe(); } catch (_) { }
@@ -77,7 +90,6 @@ function App() {
 
   // Firebase Cloud Messaging integration
   useEffect(() => {
-    // Request notification permission and get token
     requestNotificationPermissionAndGetToken()
       .then((token) => {
         if (token) {
@@ -93,16 +105,14 @@ function App() {
     const unsubscribe = onForegroundMessage((payload) => {
       console.log('Foreground message received:', payload);
 
-      // Show alert with notification title/body if available
       if (payload.notification) {
         const title = payload.notification.title || 'New Notification';
         const body = payload.notification.body || '';
-        alert(`${title}\n${body}`);
+        setActiveNotification({ title, body });
       }
     });
 
     return () => {
-      // Cleanup: unsubscribe from foreground messages if needed
       if (typeof unsubscribe === 'function') {
         unsubscribe();
       }
@@ -135,31 +145,71 @@ function App() {
 
   return (
     <>
-      <div>
-        {/* Debug: Display notification token */}
-        {notificationToken && (
-          <div style={{
-            position: 'fixed',
-            top: '60px',
-            left: '10px',
-            background: 'rgba(0,0,0,0.8)',
-            color: 'white',
-            padding: '10px',
-            borderRadius: '5px',
-            fontSize: '10px',
-            maxWidth: '300px',
-            wordBreak: 'break-all',
-            zIndex: 9999
-          }}>
-            <strong>FCM Token:</strong><br />
-            {notificationToken}
+      <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
+        {/* Styled FCM Notification Permission Prompt Banner */}
+        {showPermissionPrompt && (
+          <div className="bg-slate-900 border-b border-white/10 text-white py-3 px-6 text-center text-xs md:text-sm font-medium flex items-center justify-center gap-3 animate-fade-in relative z-[1001] shadow-lg">
+            <span>🔔 Enable push notifications to receive real-time emergency match alerts.</span>
+            <button 
+              onClick={async () => {
+                const token = await requestNotificationPermissionAndGetToken();
+                if (token) setNotificationToken(token);
+                setShowPermissionPrompt(false);
+              }}
+              className="bg-red-500 hover:bg-red-600 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer border-none shadow-sm shadow-red-500/15"
+            >
+              Enable Now
+            </button>
+            <button 
+              onClick={() => setShowPermissionPrompt(false)} 
+              className="text-slate-400 hover:text-white bg-transparent border-none cursor-pointer text-xl leading-none pl-2 select-none"
+              aria-label="Dismiss banner"
+            >
+              &times;
+            </button>
           </div>
         )}
+
+        {/* Foreground FCM Notification Banner */}
+        {activeNotification && (
+          <div className="fixed top-24 right-6 z-[99999] max-w-sm w-full bg-slate-900 border border-white/10 text-white rounded-2xl p-5 shadow-2xl flex items-start gap-3.5 animate-slide-up">
+            <div className="bg-red-500/15 text-red-400 p-2.5 rounded-xl border border-red-500/20 text-lg shrink-0 leading-none select-none">
+              🚨
+            </div>
+            <div className="flex-grow min-w-0">
+              <h4 className="font-extrabold text-sm tracking-tight text-white mb-1 truncate">{activeNotification.title}</h4>
+              <p className="text-xs text-slate-300 font-medium leading-relaxed break-words">{activeNotification.body}</p>
+            </div>
+            <button 
+              onClick={() => setActiveNotification(null)}
+              className="text-slate-400 hover:text-white transition-colors bg-transparent border-none cursor-pointer text-lg leading-none p-0.5 select-none"
+              aria-label="Close notification"
+            >
+              &times;
+            </button>
+          </div>
+        )}
+
+        {/* Debug: Display notification token */}
+        {notificationToken && (
+          <div className="fixed bottom-5 left-5 z-[9999] flex flex-col items-start gap-1 select-none">
+            <details className="group bg-slate-900/95 border border-white/10 text-slate-400 p-2.5 rounded-2xl text-[9px] max-w-[280px] shadow-2xl transition-all">
+              <summary className="font-extrabold text-white cursor-pointer list-none flex items-center gap-1.5 focus:outline-none">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                <span>FCM Device Token</span>
+                <span className="ml-auto text-[7px] text-slate-400 transition-transform group-open:rotate-180">▼</span>
+              </summary>
+              <div className="mt-2 pt-2 border-t border-white/5 break-all font-mono select-all text-slate-400 cursor-text select-text">
+                {notificationToken}
+              </div>
+            </details>
+          </div>
+        )}
+
 
         <Header
           isLoginModalOpen={isLoginModalOpen}
           setIsLoginModalOpen={setIsLoginModalOpen}
-          // optionally expose signup opener to Header if you want:
           openSignup={openSignup}
         />
 
@@ -169,6 +219,7 @@ function App() {
           setResults={setSearchResults}
           setRecipientLocation={setRecipientLocation}
           setUserHasSearched={setUserHasSearched}
+          setIsSearching={setIsSearching}
         />
 
         {recipientLocation && (
@@ -176,10 +227,17 @@ function App() {
             recipientLocation={recipientLocation}
             donors={searchResults}
             setMapController={handleSetMapController}
+            isSearching={isSearching}
           />
         )}
 
-        {userHasSearched && <SearchResult results={searchResults} focusOn={focusOn} />}
+        {userHasSearched && (
+          <SearchResult 
+            results={searchResults} 
+            focusOn={focusOn} 
+            isSearching={isSearching}
+          />
+        )}
 
         <Register setIsLoginModalOpen={setIsLoginModalOpen} />
         <RequestBlood setIsLoginModalOpen={setIsLoginModalOpen} />
@@ -190,24 +248,17 @@ function App() {
         <ContactModal />
       </div>
 
-      {/* Signup modal wrapper — parent provides onClose so Signup can close itself */}
+      {/* Redesigned unified Signup modal */}
       {isSignupOpen && (
-        <div className="modal">
-          <div className="modal-content">
-            <button className="modal-close" onClick={closeSignup}>
-              &times;
-            </button>
-
-            <Signup
-              onOpenLogin={() => {
-                // user clicked "Login" inside Signup: close signup modal and open login modal
-                closeSignup();
-                setIsLoginModalOpen(true);
-              }}
-              onClose={closeSignup}
-            />
-          </div>
-        </div>
+        <Modal isOpen={isSignupOpen} onClose={closeSignup}>
+          <Signup
+            onOpenLogin={() => {
+              closeSignup();
+              setIsLoginModalOpen(true);
+            }}
+            onClose={closeSignup}
+          />
+        </Modal>
       )}
 
       <ToastContainer />

@@ -57,39 +57,52 @@ export default function ContactModal({ user, recipient = {}, onClose }) {
   }
 
   return (
-    <div id="contactModal" className="fixed inset-0 w-full h-full bg-black/60 flex items-center justify-center z-[999]" role="dialog" aria-modal="true">
-      <div className="relative bg-white p-6 rounded-xl w-[90%] max-w-[420px] shadow-[0_4px_10px_rgba(0,0,0,0.2)]">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold text-gray-800">Contact Donor</h3>
-          <button className="text-gray-400 hover:text-red-500 transition-colors text-2xl leading-none bg-transparent border-none cursor-pointer p-0" onClick={onClose} aria-label="Close">&times;</button>
+    <div id="contactModal" className="fixed inset-0 w-full h-full bg-slate-950/40 flex items-center justify-center z-[999] backdrop-blur-[4px] animate-fade-in" role="dialog" aria-modal="true">
+      <div className="relative bg-white p-6 md:p-8 rounded-3xl w-[95%] max-w-[440px] shadow-2xl border border-slate-100 animate-slide-up">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">Contact Donor</h3>
+          <button className="text-slate-400 hover:text-slate-600 transition-colors bg-slate-50 hover:bg-slate-100 rounded-full flex items-center justify-center w-8 h-8 border border-slate-100 cursor-pointer text-xl leading-none" onClick={onClose} aria-label="Close">&times;</button>
         </div>
 
-        <div className="space-y-2 text-sm text-gray-700 mb-4">
-          <p><strong>Name:</strong> {escapeHtml(name)}</p>
-          <p><strong>Blood Group:</strong> <span className="text-red-600 font-bold">{escapeHtml(bloodGroup)}</span></p>
-          <p><strong>Location:</strong> {escapeHtml(locationText)}</p>
-          <p><strong>Phone:</strong> {phone ? <a href={`tel:${escapeHtml(phone)}`} className="text-[#e74c3c] font-medium hover:underline">{escapeHtml(phone)}</a> : "Not provided"}</p>
-          <p><strong>Email:</strong> {donorEmail ? <a href={`mailto:${escapeHtml(donorEmail)}`} className="text-[#e74c3c] font-medium hover:underline">{escapeHtml(donorEmail)}</a> : "Not provided"}</p>
+        <div className="space-y-2.5 text-sm text-slate-600 mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-100 font-medium">
+          <p className="flex justify-between border-b border-slate-200/50 pb-2"><strong className="text-slate-950">Name:</strong> <span>{escapeHtml(name)}</span></p>
+          <p className="flex justify-between border-b border-slate-200/50 pb-2"><strong className="text-slate-950">Blood Group:</strong> <span className="text-red-700 font-black bg-red-50 border border-red-100 px-2 py-0.5 rounded-full text-xs">{escapeHtml(bloodGroup)}</span></p>
+          <p className="flex justify-between border-b border-slate-200/50 pb-2"><strong className="text-slate-950">Location:</strong> <span className="max-w-[200px] truncate" title={locationText}>{escapeHtml(locationText)}</span></p>
+          <p className="flex justify-between border-b border-slate-200/50 pb-2"><strong className="text-slate-950">Phone:</strong> {phone ? <a href={`tel:${escapeHtml(phone)}`} className="text-red-600 font-bold hover:underline">{escapeHtml(phone)}</a> : <span>Not provided</span>}</p>
+          <p className="flex justify-between"><strong className="text-slate-950">Email:</strong> {donorEmail ? <a href={`mailto:${escapeHtml(donorEmail)}`} className="text-red-600 font-bold hover:underline max-w-[200px] truncate" title={donorEmail}>{escapeHtml(donorEmail)}</a> : <span>Not provided</span>}</p>
         </div>
 
-        <div className="mb-4">
-          <label htmlFor="recipientMessage" className="block text-sm font-medium text-gray-700 mb-1.5">Your Details (Address + Phone)</label>
-          <textarea id="recipientMessage" placeholder="ADDRESS AND PHONE NUMBER" value={recipientMessage} onChange={(e) => setRecipientMessage(e.target.value)} className="w-full min-h-[80px] p-2 border border-gray-300 rounded-lg text-sm resize-y focus:outline-none focus:border-[#e74c3c] focus:ring-2 focus:ring-red-200" rows={4} />
+        <div className="mb-5">
+          <label htmlFor="recipientMessage" className="block text-xs uppercase tracking-wider font-extrabold text-slate-500 mb-2">Your Contact Details / Situation</label>
+          <textarea 
+            id="recipientMessage" 
+            placeholder="Please enter your address, phone number, and brief reason so the donor can contact you back easily." 
+            value={recipientMessage} 
+            onChange={(e) => setRecipientMessage(e.target.value)} 
+            className="w-full min-h-[90px] p-3 border border-slate-200 rounded-xl text-sm font-medium bg-slate-50 text-slate-900 focus:outline-none focus:border-red-500 focus:ring-4 focus:ring-red-500/10 focus:bg-white resize-none transition-all shadow-sm" 
+            rows={3} 
+          />
         </div>
 
-        <p className="bg-red-50 border-l-4 border-[#e74c3c] text-red-700 text-xs py-2.5 px-3 rounded-md mb-4 leading-relaxed">
-          Please be respectful when contacting donors. Explain your situation clearly and provide your contact information.
+        <p className="bg-red-50/70 border-l-4 border-red-500 text-red-800 text-xs py-3 px-4 rounded-r-xl mb-6 leading-relaxed font-medium">
+          Please write respectfully. State your contact info clearly so the donor can act fast.
         </p>
 
-        {error && <div className="bg-red-100 text-red-600 text-sm py-2 px-3 rounded-md mb-3" role="alert">{error}</div>}
-        {sent && <div className="bg-green-100 text-green-700 text-sm py-2 px-3 rounded-md mb-3" role="status">Request email sent to donor.</div>}
+        {error && <div className="bg-red-50 border border-red-200 text-red-700 text-xs py-2.5 px-3 rounded-xl mb-4 font-semibold text-center animate-fade-in" role="alert">⚠️ {error}</div>}
+        {sent && <div className="bg-green-50 border border-green-200 text-green-700 text-xs py-2.5 px-3 rounded-xl mb-4 font-semibold text-center animate-fade-in" role="status">✓ Request email sent to donor.</div>}
 
-        <button className="w-full bg-green-500 text-white border-none rounded-lg py-2.5 px-4 font-semibold cursor-pointer mb-2.5 hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={sending || sent} onClick={handleRequest}>
-          {sending ? "Sending..." : sent ? "Sent ✓" : "Request Blood"}
-        </button>
-        <button className="w-full bg-[#e74c3c] text-white border-none rounded-lg py-2.5 px-4 font-semibold cursor-pointer hover:bg-[#c0392b] transition-colors" onClick={onClose}>
-          Close
-        </button>
+        <div className="flex flex-col gap-2">
+          <button 
+            className="w-full bg-green-600 hover:bg-green-700 text-white border-none rounded-xl py-3.5 px-4 font-bold cursor-pointer transition-all shadow-md shadow-green-500/10 hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1.5" 
+            disabled={sending || sent} 
+            onClick={handleRequest}
+          >
+            {sending ? "Sending Request..." : sent ? "Request Sent ✓" : "Send Blood Request"}
+          </button>
+          <button className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 border-none rounded-xl py-3.5 px-4 font-bold cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99]" onClick={onClose}>
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );

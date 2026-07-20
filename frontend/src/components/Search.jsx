@@ -6,7 +6,7 @@ import { db, auth } from "../firebase";
 import { signInAnonymously } from "firebase/auth";
 import { geohashQueryBounds, distanceBetween } from "geofire-common";
 
-export default function Search({ setResults, setRecipientLocation, setUserHasSearched }) {
+export default function Search({ setResults, setRecipientLocation, setUserHasSearched, setIsSearching }) {
   const [bloodType, setBloodType] = useState("");
   const [rangeKm, setRangeKm] = useState(5);
   const [loading, setLoading] = useState(false);
@@ -32,12 +32,16 @@ export default function Search({ setResults, setRecipientLocation, setUserHasSea
 
   const handleSearch = async () => {
     setError(null);
-    if (!bloodType) { setError("Select blood type"); return; }
-    if (!db) { setError("Internal: Firestore not initialized (check firebase import)."); return; }
+    if (!bloodType) { setError("Please select a blood type to search."); return; }
+    if (!db) { setError("Firestore is not initialized."); return; }
+    
     setLoading(true);
+    if (setIsSearching) setIsSearching(true);
+    
     if (!navigator.geolocation) {
-      setError("Geolocation not supported by your browser");
+      setError("Geolocation is not supported by your browser");
       setLoading(false);
+      if (setIsSearching) setIsSearching(false);
       return;
     }
 
@@ -46,7 +50,10 @@ export default function Search({ setResults, setRecipientLocation, setUserHasSea
         const latNum = Number(pos.coords.latitude);
         const lngNum = Number(pos.coords.longitude);
         if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
-          setError("Invalid GPS coordinates"); setLoading(false); return;
+          setError("Invalid GPS coordinates received."); 
+          setLoading(false); 
+          if (setIsSearching) setIsSearching(false);
+          return;
         }
         setRecipientLocation({ lat: latNum, lng: lngNum });
         try {
@@ -80,68 +87,95 @@ export default function Search({ setResults, setRecipientLocation, setUserHasSea
           setUserHasSearched(true);
         } catch (err) {
           console.error("Firestore read error:", err);
-          setError("Failed to fetch donors from Firestore: " + (err?.message || err?.code || String(err)));
+          setError("Failed to fetch donors: " + (err?.message || err?.code || String(err)));
         } finally {
           setLoading(false);
+          if (setIsSearching) setIsSearching(false);
         }
       },
       (err) => {
         console.error("Geolocation error:", err);
-        setError("Location permission denied or unavailable");
+        setError("Location permission denied. Please enable GPS and try again.");
         setLoading(false);
+        if (setIsSearching) setIsSearching(false);
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 
-  const selectClass = "w-full py-3 px-3 text-[0.95rem] border-2 border-gray-800 rounded-lg bg-white text-gray-900 cursor-pointer transition-all duration-200 focus:outline-none focus:border-brand-red focus:shadow-[0_0_0_3px_rgba(231,76,60,0.25)] appearance-none";
+  const selectClass = "w-full py-3.5 px-4 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-900 cursor-pointer transition-all duration-200 focus:outline-none focus:border-red-500 focus:ring-4 focus:ring-red-500/10 focus:bg-white font-semibold appearance-none shadow-sm hover:border-slate-300";
 
   return (
-    <section className="bg-gray-500/50 py-20" id="search">
+    <section className="bg-slate-50 py-24 border-b border-slate-100" id="search">
       <div className="max-w-3xl mx-auto px-6">
-        <h2 className="text-center mb-8 text-2xl font-bold">Find Blood Donors</h2>
+        <div className="text-center max-w-lg mx-auto mb-12">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mb-3">Find Blood Donors</h2>
+          <p className="text-sm text-slate-500 leading-relaxed font-medium">Enter your required blood type and search radius. We will search nearby active donors in real-time.</p>
+        </div>
 
         <form
-          className="bg-white p-4 rounded-xl grid grid-cols-1 gap-5 max-w-xl mx-auto"
+          className="bg-white p-8 md:p-10 rounded-3xl border border-slate-100 shadow-[0_15px_40px_rgba(15,23,42,0.06)] grid grid-cols-1 gap-6 max-w-xl mx-auto hover:shadow-[0_20px_50px_rgba(15,23,42,0.08)] transition-all duration-300"
           onSubmit={(e) => { e.preventDefault(); handleSearch(); }}
         >
-          <div className="flex justify-center gap-12 flex-wrap">
-            <div className="flex flex-col items-center text-center w-full max-w-[220px]">
-              <label className="text-sm font-semibold mb-1.5 text-gray-700">Blood Type Needed</label>
-              <select value={bloodType} onChange={(e) => setBloodType(e.target.value)} className={selectClass}>
-                <option value="">Select Blood Group</option>
-                <option value="A+">A+</option>
-                <option value="A-">A-</option>
-                <option value="B+">B+</option>
-                <option value="B-">B-</option>
-                <option value="AB+">AB+</option>
-                <option value="AB-">AB-</option>
-                <option value="O+">O+</option>
-                <option value="O-">O-</option>
-              </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col">
+              <label className="text-[10px] uppercase tracking-wider font-extrabold mb-2 text-slate-400">Blood Type Needed</label>
+              <div className="relative">
+                <select value={bloodType} onChange={(e) => setBloodType(e.target.value)} className={selectClass}>
+                  <option value="">Select Blood Group</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
+                  ▼
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-col items-center text-center w-full max-w-[220px]">
-              <label className="text-sm font-semibold mb-1.5 text-gray-700">Search Radius (km)</label>
-              <select value={rangeKm} onChange={(e) => setRangeKm(Number(e.target.value))} className={selectClass}>
-                <option value={5}>5 km</option>
-                <option value={10}>10 km</option>
-                <option value={15}>15 km</option>
-              </select>
+            <div className="flex flex-col">
+              <label className="text-[10px] uppercase tracking-wider font-extrabold mb-2 text-slate-400">Search Radius (km)</label>
+              <div className="relative">
+                <select value={rangeKm} onChange={(e) => setRangeKm(Number(e.target.value))} className={selectClass}>
+                  <option value={5}>5 km</option>
+                  <option value={10}>10 km</option>
+                  <option value={15}>15 km</option>
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
+                  ▼
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="flex justify-center">
+          <div className="flex justify-center pt-2">
             <button
               type="submit"
               disabled={loading}
-              className="bg-gradient-to-br from-[#e74c3c] to-[#c0392b] text-white py-3.5 px-8 border-none rounded-lg text-[0.9rem] font-semibold cursor-pointer transition-all duration-300 shadow-[0_4px_6px_rgba(231,76,60,0.3)] uppercase tracking-wide hover:bg-gradient-to-br hover:from-[#c0392b] hover:to-[#a93226] hover:shadow-[0_6px_12px_rgba(231,76,60,0.4)] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white py-4 px-8 border-none rounded-xl text-sm font-extrabold cursor-pointer transition-all duration-200 shadow-lg shadow-red-500/10 hover:shadow-xl hover:shadow-red-500/25 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center"
             >
-              {loading ? "Searching..." : "Search Donors"}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Searching Donors...
+                </span>
+              ) : "Search Donors"}
             </button>
           </div>
 
-          {error && <p className="text-red-500 text-center text-sm">{error}</p>}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-xs py-3 px-4 rounded-xl text-center font-bold animate-fade-in">
+              ⚠️ {error}
+            </div>
+          )}
         </form>
       </div>
     </section>
@@ -152,4 +186,5 @@ Search.propTypes = {
   setResults: PropTypes.func.isRequired,
   setRecipientLocation: PropTypes.func.isRequired,
   setUserHasSearched: PropTypes.func.isRequired,
+  setIsSearching: PropTypes.func,
 };

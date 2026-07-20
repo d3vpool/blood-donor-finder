@@ -49,58 +49,59 @@ function Header({ isLoginModalOpen, setIsLoginModalOpen }) {
 
   return (
     <>
-      <header className="bg-black text-white py-3 shadow-md sticky top-0 z-[1000] w-full">
+      <header className="bg-black/90 backdrop-blur-md text-white py-4 shadow-lg sticky top-0 z-[1000] w-full border-b border-white/10 transition-all duration-300">
         <div className="w-full max-w-[1200px] mx-auto px-6">
           <div className="grid grid-cols-[auto_minmax(0,_1fr)_auto] items-center gap-4 w-full relative whitespace-nowrap">
-            <div className="col-start-1 justify-self-start self-center">
-              <h1 className="text-2xl md:text-3xl font-bold text-white m-0 whitespace-nowrap">LifeLink</h1>
+            <div className="col-start-1 justify-self-start self-center flex items-center gap-2">
+              <span className="text-2xl font-black tracking-tight text-white m-0 whitespace-nowrap">
+                Life<span className="text-red-500">Link</span>
+              </span>
             </div>
 
-            <nav className={`justify-self-center self-center w-full z-[1100] md:relative md:block md:top-auto md:left-auto md:right-auto md:bg-transparent ${isNavOpen ? 'block absolute top-full left-0 right-0 bg-black' : 'hidden'}`}>
-              <ul onClick={handleNavLinkClick} className="flex gap-[15px] items-center list-none m-0 p-0 md:flex-row flex-col max-md:gap-2.5 max-md:py-3 max-md:px-5 max-md:items-start">
-                <li><a href="#home" className="font-medium py-2 px-3 transition-all duration-300 text-white inline-block hover:bg-brand-red hover:text-white hover:rounded-md animate-duration-300">Home</a></li>
-                <li><a href="#search" className="font-medium py-2 px-3 transition-all duration-300 text-white inline-block hover:bg-brand-red hover:text-white hover:rounded-md animate-duration-300">Find Donors</a></li>
-                <li><a href="#register" className="font-medium py-2 px-3 transition-all duration-300 text-white inline-block hover:bg-brand-red hover:text-white hover:rounded-md animate-duration-300">Register</a></li>
-                <li><a href="#request-blood" className="font-medium py-2 px-3 transition-all duration-300 text-white inline-block hover:bg-brand-red hover:text-white hover:rounded-md animate-duration-300">Request Blood</a></li>
-                {user && <li><a href="#donor-inbox" className="font-medium py-2 px-3 transition-all duration-300 text-white inline-block hover:bg-brand-red hover:text-white hover:rounded-md animate-duration-300">Requests For You</a></li>}
-                <li><a href="#about" className="font-medium py-2 px-3 transition-all duration-300 text-white inline-block hover:bg-brand-red hover:text-white hover:rounded-md animate-duration-300">About</a></li>
-                <li><a href="tel:011-23359379" className="border-2 border-brand-red text-brand-red py-2 px-4 rounded-lg text-decoration-none bg-transparent hover:bg-brand-red hover:text-white transition-all duration-300">Emergency</a></li>
+            <nav className={`justify-self-center self-center w-full z-[1100] md:relative md:block md:top-auto md:left-auto md:right-auto md:bg-transparent ${isNavOpen ? 'block absolute top-full left-0 right-0 bg-black/95 backdrop-blur-lg border-b border-white/10 animate-fade-in' : 'hidden'}`}>
+              <ul onClick={handleNavLinkClick} className="flex gap-[15px] items-center list-none m-0 p-0 md:flex-row flex-col max-md:gap-2.5 max-md:py-5 max-md:px-6 max-md:items-stretch">
+                <li><a href="#home" className="font-semibold text-sm py-2 px-3 transition-all duration-200 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg inline-block w-full text-center md:text-left">Home</a></li>
+                <li><a href="#search" className="font-semibold text-sm py-2 px-3 transition-all duration-200 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg inline-block w-full text-center md:text-left">Find Donors</a></li>
+                <li><a href="#register" className="font-semibold text-sm py-2 px-3 transition-all duration-200 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg inline-block w-full text-center md:text-left">Register</a></li>
+                <li><a href="#request-blood" className="font-semibold text-sm py-2 px-3 transition-all duration-200 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg inline-block w-full text-center md:text-left">Request Blood</a></li>
+                {user && <li><a href="#donor-inbox" className="font-semibold text-sm py-2 px-3 transition-all duration-200 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg inline-block w-full text-center md:text-left">Requests For You</a></li>}
+                <li><a href="#about" className="font-semibold text-sm py-2 px-3 transition-all duration-200 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg inline-block w-full text-center md:text-left">About</a></li>
+                <li className="max-md:mt-2">
+                  <a href="tel:011-23359379" className="border-2 border-red-500 text-red-500 font-bold py-2 px-4 rounded-lg text-decoration-none bg-red-500/10 hover:bg-red-500 hover:text-white transition-all duration-300 text-sm inline-block w-full text-center shadow-md hover:shadow-red-500/20">
+                    🚨 Emergency Call
+                  </a>
+                </li>
               </ul>
             </nav>
 
-            <div className="col-start-3 justify-self-end flex items-center gap-1.5 md:gap-2 min-w-max">
-              <div className="flex-none inline-flex items-center justify-center bg-white rounded text-black whitespace-nowrap min-w-max max-w-[140px] md:max-w-[220px] overflow-hidden text-ellipsis p-0">
-                <ul className="flex items-center list-none m-0 p-0">
-                  <li>
-                    {user ? (
-                      <button onClick={handleLogout} className="font-medium py-1.5 px-2.5 md:py-2 md:px-3 text-sm md:text-base text-black bg-transparent border-none cursor-pointer inline-block leading-none hover:bg-gray-100 hover:text-black hover:rounded">
-                        Logout
-                      </button>
-                    ) : (
-                      <a
-                        href="#"
-                        className="font-medium py-1.5 px-2.5 md:py-2 md:px-3 text-sm md:text-base text-black bg-transparent border-none cursor-pointer inline-block leading-none hover:bg-gray-100 hover:text-black hover:rounded text-decoration-none"
-                        onClick={e => {
-                          e.preventDefault();
-                          setIsLoginModalOpen(true);
-                        }}
-                      >
-                        Login
-                      </a>
-                    )}
-                  </li>
-                </ul>
+            <div className="col-start-3 justify-self-end flex items-center gap-2 min-w-max">
+              <div className="flex-none inline-flex items-center justify-center rounded-lg whitespace-nowrap min-w-max max-w-[140px] md:max-w-[220px] overflow-hidden text-ellipsis p-0">
+                {user ? (
+                  <button onClick={handleLogout} className="font-bold py-2 px-4 text-xs md:text-sm text-white bg-white/10 hover:bg-red-600 border border-white/10 rounded-lg cursor-pointer transition-all duration-200 shadow-md">
+                    Logout
+                  </button>
+                ) : (
+                  <button
+                    className="font-bold py-2 px-4 text-xs md:text-sm text-black bg-white hover:bg-gray-100 border-none rounded-lg cursor-pointer transition-all duration-200 shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                    onClick={e => {
+                      e.preventDefault();
+                      setIsLoginModalOpen(true);
+                    }}
+                  >
+                    Login
+                  </button>
+                )}
               </div>
 
               <button
-                className="md:hidden flex flex-col gap-1 w-9 h-7 bg-transparent border-none p-1 cursor-pointer items-center justify-center z-[1200]"
+                className="md:hidden flex flex-col gap-1 w-9 h-7 bg-transparent border-none p-1 cursor-pointer items-center justify-center z-[1200] relative"
                 aria-label={isNavOpen ? "Close menu" : "Open menu"}
                 aria-expanded={isNavOpen}
                 onClick={() => setIsNavOpen(v => !v)}
               >
-                <span className={`block w-5.5 h-[2.2px] rounded-sm bg-white transition-all duration-180 relative ${isNavOpen ? 'translate-y-[6px] rotate-45' : ''}`}></span>
-                <span className={`block w-5.5 h-[2.2px] rounded-sm bg-white transition-all duration-120 relative ${isNavOpen ? 'opacity-0 scale-x-0' : ''}`}></span>
-                <span className={`block w-5.5 h-[2.2px] rounded-sm bg-white transition-all duration-180 relative ${isNavOpen ? '-translate-y-[6px] rotate-[-45deg]' : ''}`}></span>
+                <span className={`block w-5.5 h-[2px] rounded bg-white transition-all duration-200 relative ${isNavOpen ? 'translate-y-[6px] rotate-45' : ''}`}></span>
+                <span className={`block w-5.5 h-[2px] rounded bg-white transition-all duration-150 relative ${isNavOpen ? 'opacity-0 scale-x-0' : ''}`}></span>
+                <span className={`block w-5.5 h-[2px] rounded bg-white transition-all duration-200 relative ${isNavOpen ? '-translate-y-[6px] -rotate-45' : ''}`}></span>
               </button>
             </div>
           </div>
