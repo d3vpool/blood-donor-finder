@@ -42,7 +42,7 @@ function Hero() {
 
                 <h1 className="text-4xl md:text-6xl font-extrabold mb-6 leading-tight tracking-tight animate-slide-up">
                     Every Drop Counts.<br />
-                    Every <span className="bg-gradient-to-r from-red-500 via-rose-500 to-amber-500 bg-clip-text text-transparent">Life Matters.</span>
+                    Every <span className="text-red-600">Life Matters.</span>
                 </h1>
                 <p className="text-sm md:text-lg text-slate-300 max-w-xl mx-auto mb-10 leading-relaxed font-medium animate-slide-up [animation-delay:150ms]">
                     Connect with blood donors in your area and help save lives. Join our community of everyday heroes making a difference.

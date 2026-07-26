@@ -190,21 +190,7 @@ function App() {
           </div>
         )}
 
-        {/* Debug: Display notification token */}
-        {notificationToken && (
-          <div className="fixed bottom-5 left-5 z-[9999] flex flex-col items-start gap-1 select-none">
-            <details className="group bg-slate-900/95 border border-white/10 text-slate-400 p-2.5 rounded-2xl text-[9px] max-w-[280px] shadow-2xl transition-all">
-              <summary className="font-extrabold text-white cursor-pointer list-none flex items-center gap-1.5 focus:outline-none">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                <span>FCM Device Token</span>
-                <span className="ml-auto text-[7px] text-slate-400 transition-transform group-open:rotate-180">▼</span>
-              </summary>
-              <div className="mt-2 pt-2 border-t border-white/5 break-all font-mono select-all text-slate-400 cursor-text select-text">
-                {notificationToken}
-              </div>
-            </details>
-          </div>
-        )}
+
 
 
         <Header

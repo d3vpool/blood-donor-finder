@@ -1,12 +1,12 @@
-// src/components/Signup.jsx
+// src/components/SignUp.jsx
 import React, { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { setDoc, doc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { toast } from "react-toastify";
 
-const inputClass = "w-full py-2.5 px-3.5 bg-gray-100 border border-gray-200 rounded-lg text-[15px] mb-1 focus:outline-none focus:border-blue-500 transition-colors";
-const labelClass = "text-sm font-medium text-[#3a5371] mb-1 block";
+const inputClass = "w-full py-3 px-4 border border-slate-200 rounded-xl text-sm font-semibold bg-slate-50 text-slate-900 focus:outline-none focus:border-red-500 focus:ring-4 focus:ring-red-500/10 focus:bg-white transition-all duration-200 shadow-sm hover:border-slate-300";
+const labelClass = "block text-[10px] uppercase tracking-wider font-extrabold text-slate-400 mb-1.5";
 
 function Signup({ onOpenLogin, onClose }) {
   const [signupFullname, setSignupFullname] = useState("");
@@ -41,20 +41,21 @@ function Signup({ onOpenLogin, onClose }) {
   };
 
   return (
-    <>
-      <div className="mb-4 bg-gray-50 p-3.5 rounded-full shadow-sm">
+    <div className="flex flex-col items-center max-w-sm mx-auto p-2">
+      <div className="mb-5 bg-red-50 p-4 rounded-2xl border border-red-100/60 shadow-sm flex items-center justify-center select-none">
         <span className="text-3xl">📝</span>
       </div>
-      <h2 className="mb-2 text-2xl font-medium text-gray-900 text-center">Sign Up</h2>
+      <h2 className="mb-1 text-2xl font-extrabold text-slate-900 text-center tracking-tight">Create Account</h2>
+      <p className="text-xs text-slate-400 font-medium mb-6 text-center leading-relaxed">Join LifeLink to request emergency blood or volunteer as a donor.</p>
 
-      <form onSubmit={handleSignup} className="w-full flex flex-col gap-3 mb-5">
+      <form onSubmit={handleSignup} className="w-full flex flex-col gap-4 mb-4">
         <div>
           <label htmlFor="fullname" className={labelClass}>Full Name</label>
           <input
             type="text"
             name="fullname"
             id="fullname"
-            placeholder="Full Name"
+            placeholder="John Doe"
             required
             value={signupFullname}
             onChange={(e) => setSignupFullname(e.target.value)}
@@ -62,12 +63,12 @@ function Signup({ onOpenLogin, onClose }) {
           />
         </div>
         <div>
-          <label htmlFor="signup-email" className={labelClass}>Email</label>
+          <label htmlFor="signup-email" className={labelClass}>Email Address</label>
           <input
             type="email"
             name="email"
             id="signup-email"
-            placeholder="Email"
+            placeholder="yourname@example.com"
             required
             value={signupEmail}
             onChange={(e) => setSignupEmail(e.target.value)}
@@ -80,7 +81,7 @@ function Signup({ onOpenLogin, onClose }) {
             type="password"
             name="password"
             id="signup-password"
-            placeholder="Password"
+            placeholder="••••••••"
             required
             value={signupPassword}
             onChange={(e) => setSignupPassword(e.target.value)}
@@ -88,18 +89,18 @@ function Signup({ onOpenLogin, onClose }) {
           />
         </div>
         <button
-          className="mt-3 w-full bg-gray-900 text-white border-none py-2.5 text-base rounded-lg font-semibold cursor-pointer transition-colors hover:bg-blue-500 disabled:opacity-60"
+          className="mt-2 w-full bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-none py-3.5 px-8 rounded-xl font-extrabold text-sm cursor-pointer transition-all shadow-md shadow-red-500/10 hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60"
           type="submit"
           disabled={loading}
         >
-          {loading ? "Creating..." : "Create Account"}
+          {loading ? "Creating Account..." : "Create Account"}
         </button>
       </form>
 
-      <div className="text-gray-500 font-semibold mt-3 flex items-center gap-1.5 justify-center text-[15px]">
+      <div className="text-slate-500 font-bold mt-4 flex items-center gap-1.5 justify-center text-xs uppercase tracking-wider">
         <span>Already have an account?</span>
         <button
-          className="bg-transparent border-none text-blue-500 font-semibold cursor-pointer px-1 hover:underline"
+          className="bg-transparent border-none text-red-500 font-extrabold cursor-pointer px-1 hover:text-red-600 transition-colors"
           onClick={(e) => {
             e.preventDefault();
             if (typeof onClose === "function") onClose();
@@ -109,7 +110,7 @@ function Signup({ onOpenLogin, onClose }) {
           Login
         </button>
       </div>
-    </>
+    </div>
   );
 }
 

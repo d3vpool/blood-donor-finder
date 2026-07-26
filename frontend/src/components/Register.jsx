@@ -189,23 +189,51 @@ function Register({ setIsLoginModalOpen }) {
             
             <div className="border-t border-slate-100 pt-6">
               <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-4">Manage Availability</p>
+              {isSnoozedActive && (
+                <p className="text-xs text-amber-700 font-bold mb-4 bg-amber-50/80 py-2 px-3 rounded-xl border border-amber-200/70">
+                  Snoozed until {new Date(snoozedUntil).toLocaleDateString()} ({Math.max(1, Math.ceil((snoozedUntil - Date.now()) / (1000 * 60 * 60 * 24)))} days left)
+                </p>
+              )}
               <div className="flex flex-col gap-2.5">
                 <button 
                   onClick={markAsAvailable}
                   className={`py-3.5 px-5 font-bold rounded-xl transition-all border text-sm w-full cursor-pointer flex items-center justify-center gap-2 ${!isSnoozedActive ? 'bg-green-600 border-green-600 text-white shadow-md shadow-green-500/10 hover:bg-green-700' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'}`}
                 >
-                  ✓ Active (Available)
+                  ✓ Active (Available to Donate)
                 </button>
                 <button 
                   onClick={snooze}
                   className={`py-3.5 px-5 font-bold rounded-xl transition-all border text-sm w-full cursor-pointer flex items-center justify-center gap-2 ${isSnoozedActive ? 'bg-slate-800 border-slate-800 text-white shadow-md shadow-slate-800/10 hover:bg-slate-900' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'}`}
                 >
-                  💤 Snooze 30 Days
+                  💤 Snooze for 30 Days
                 </button>
+              </div>
+            </div>
+
+            {/* Gamification Badges */}
+            <div className="mt-8 pt-6 border-t border-slate-100">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-4">Your Donor Badge Status</p>
+              <div className="grid grid-cols-3 gap-2.5">
+                <div className="bg-red-50/50 border border-red-100/50 p-3 rounded-2xl flex flex-col items-center">
+                  <span className="text-2xl mb-1 select-none">🥉</span>
+                  <span className="text-[10px] font-extrabold text-slate-850">Bronze</span>
+                  <span className="text-[8px] text-slate-400 font-bold">1 Donation</span>
+                </div>
+                <div className="bg-slate-50 border border-slate-100 p-3 rounded-2xl flex flex-col items-center opacity-60">
+                  <span className="text-2xl mb-1 select-none">🥈</span>
+                  <span className="text-[10px] font-extrabold text-slate-850">Silver</span>
+                  <span className="text-[8px] text-slate-400 font-bold">5 Donations</span>
+                </div>
+                <div className="bg-slate-50 border border-slate-100 p-3 rounded-2xl flex flex-col items-center opacity-60">
+                  <span className="text-2xl mb-1 select-none">👑</span>
+                  <span className="text-[10px] font-extrabold text-slate-850">Hero</span>
+                  <span className="text-[8px] text-slate-400 font-bold">10+ Donations</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
+
       </section>
     );
   }

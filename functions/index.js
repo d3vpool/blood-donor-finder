@@ -87,11 +87,25 @@ exports.bloodRequestReceived = onDocumentCreated("BloodRequests/{requestId}", as
 
 
   const candidates = [];
+  const now = Date.now();
   snapshots.forEach((snap) => {
     snap.docs.forEach((doc) => {
       const data = doc.data();
-      if (!data.snoozedUntil || data.snoozedUntil < Date.now()) {
+      let snoozedUntilMs = 0;
+      if (data.snoozedUntil) {
+        if (typeof data.snoozedUntil.toMillis === "function") {
+          snoozedUntilMs = data.snoozedUntil.toMillis();
+        } else if (typeof data.snoozedUntil === "number") {
+          snoozedUntilMs = data.snoozedUntil;
+        } else if (typeof data.snoozedUntil === "string") {
+          snoozedUntilMs = new Date(data.snoozedUntil).getTime();
+        }
+      }
+      // Filter out snoozed donors automatically
+      if (!snoozedUntilMs || snoozedUntilMs < now) {
         candidates.push({id: doc.id, ...data});
+      } else {
+        logger.log(`Skipping snoozed donor ${doc.id} (snoozed until ${new Date(snoozedUntilMs).toISOString()})`);
       }
     });
   });
