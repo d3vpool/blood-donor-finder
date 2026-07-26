@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { auth, db } from "../firebase";
 import { doc, getDoc } from 'firebase/firestore';
+import { isRealUser } from "../utils/authUser";
 
 function Hero() {
     const [user, setUser] = useState(null);
@@ -8,9 +9,10 @@ function Hero() {
 
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
-            setUser(currentUser);
-            if (currentUser) {
-                const userDoc = await getDoc(doc(db, "Users", currentUser.uid));
+            const realUser = isRealUser(currentUser) ? currentUser : null;
+            setUser(realUser);
+            if (realUser) {
+                const userDoc = await getDoc(doc(db, "Users", realUser.uid));
                 if (userDoc.exists()) {
                     const firstName = (userDoc.data().fullname || '').split(' ')[0];
                     setUserName(firstName);

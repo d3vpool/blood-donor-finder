@@ -4,6 +4,7 @@ import Modal from './modal';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { auth } from "../firebase";
 import { setupAutoRegistration, removeTokenForUser } from "../firebaseMessaging";
+import { isRealUser } from "../utils/authUser";
 import Login from "./Login";
 import SignUp from "./SignUp";
 
@@ -14,11 +15,13 @@ function Header({ isLoginModalOpen, setIsLoginModalOpen }) {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
-      setUser(u || null);
+      // Anonymous sessions (legacy search path) must not look "logged in"
+      const real = isRealUser(u) ? u : null;
+      setUser(real);
 
-      if (u) {
+      if (real) {
         try {
-          await setupAutoRegistration({ uid: u.uid });
+          await setupAutoRegistration({ uid: real.uid });
         } catch (err) {
           console.warn('FCM token registration failed:', err);
         }
@@ -31,7 +34,8 @@ function Header({ isLoginModalOpen, setIsLoginModalOpen }) {
   }, []);
 
   const handleLogout = () => {
-    const uid = auth.currentUser?.uid;
+    const current = auth.currentUser;
+    const uid = isRealUser(current) ? current.uid : null;
 
     signOut(auth)
       .then(async () => {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '../firebase';
+import { isRealUser } from '../utils/authUser';
 
 const ActiveRequests = () => {
     const [bloodRequests, setBloodRequests] = useState([]);
@@ -18,7 +19,7 @@ const ActiveRequests = () => {
                 firestoreUnsub = null;
             }
 
-            if (!user) {
+            if (!isRealUser(user)) {
                 // Not logged in — nothing to show
                 setBloodRequests([]);
                 setLoading(false);

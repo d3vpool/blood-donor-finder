@@ -6,6 +6,8 @@ import { auth, db } from "../firebase";
 import { registerTokenForUser, removeTokenForUser } from "../firebaseMessaging";
 import { toast } from "react-toastify";
 import { encodeGeoHash } from "../utils/geoHash";
+import { isRealUser } from "../utils/authUser";
+import { getCurrentCoordinates, geolocationErrorMessage } from "../utils/geolocation";
 
 const inputClass = "w-full py-3.5 px-4 border border-slate-200 rounded-xl text-sm font-semibold bg-slate-50 text-slate-900 focus:outline-none focus:border-red-500 focus:ring-4 focus:ring-red-500/10 focus:bg-white transition-all duration-200 shadow-sm hover:border-slate-300";
 const labelClass = "block text-[10px] uppercase tracking-wider font-extrabold text-slate-400 mb-2";
@@ -61,16 +63,18 @@ function Register({ setIsLoginModalOpen }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (!currentUser && lastUidRef.current) {
+      const realUser = isRealUser(currentUser) ? currentUser : null;
+
+      if (!realUser && lastUidRef.current) {
         try { await removeTokenForUser(lastUidRef.current); } catch (e) { console.warn("Failed removing token", e); }
         resetDonorForm(); lastUidRef.current = null;
       }
-      setUser(currentUser); setLoading(false);
-      if (currentUser) {
-        lastUidRef.current = currentUser.uid; setDonorEmail(currentUser.email || "");
-        try { const d = await getDoc(doc(db, "Users", currentUser.uid)); if (d.exists()) setDonorFullname(d.data().fullname || ""); } catch (e) { console.warn("Failed to read Users doc:", e); }
+      setUser(realUser); setLoading(false);
+      if (realUser) {
+        lastUidRef.current = realUser.uid; setDonorEmail(realUser.email || "");
+        try { const d = await getDoc(doc(db, "Users", realUser.uid)); if (d.exists()) setDonorFullname(d.data().fullname || ""); } catch (e) { console.warn("Failed to read Users doc:", e); }
         try { 
-          const d = await getDoc(doc(db, "Donors", currentUser.uid)); 
+          const d = await getDoc(doc(db, "Donors", realUser.uid)); 
           if (d.exists()) {
             setIsDonor(true);
             setSnoozedUntil(d.data().snoozedUntil || null);
@@ -83,36 +87,22 @@ function Register({ setIsLoginModalOpen }) {
     return () => unsubscribe();
   }, [resetDonorForm]);
 
-  const requestLocation = () => {
-    if (!navigator.geolocation) { 
-      setLocationError("Geolocation is not supported."); 
-      toast.error("Geolocation not supported", { position: "top-center" }); 
-      return; 
-    }
+  const requestLocation = async () => {
     setFetchingLocation(true);
     setLocationError("");
     toast.info("Requesting location permission...", { position: "top-center", autoClose: 2000 });
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const latNum = Number(position.coords.latitude); const lngNum = Number(position.coords.longitude);
-        setFetchingLocation(false);
-        if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) { 
-          setLocationError("Invalid coordinates received."); 
-          toast.error("Invalid location coordinates", { position: "top-center" }); 
-          return; 
-        }
-        setLocation({ latitude: latNum, longitude: lngNum });
-        try { localStorage.setItem("geoAllowed", "true"); localStorage.setItem("recipientLocation", JSON.stringify({ lat: latNum, lng: lngNum })); } catch (_) { }
-        toast.success("Location access granted!", { position: "top-center" });
-      },
-      (error) => {
-        setFetchingLocation(false);
-        setLocationError(error.message || "Location error");
-        const msgs = { [error.PERMISSION_DENIED]: "Location permission denied.", [error.POSITION_UNAVAILABLE]: "Location information unavailable.", [error.TIMEOUT]: "Location request timed out." };
-        toast.error(msgs[error.code] || "An error occurred while getting location.", { position: "top-center" });
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
+    try {
+      const { latitude: latNum, longitude: lngNum } = await getCurrentCoordinates();
+      setLocation({ latitude: latNum, longitude: lngNum });
+      try { localStorage.setItem("geoAllowed", "true"); localStorage.setItem("recipientLocation", JSON.stringify({ lat: latNum, lng: lngNum })); } catch (_) { }
+      toast.success("Location access granted!", { position: "top-center" });
+    } catch (error) {
+      const message = geolocationErrorMessage(error);
+      setLocationError(message);
+      toast.error(message, { position: "top-center" });
+    } finally {
+      setFetchingLocation(false);
+    }
   };
 
   const handleDonorRegistration = async (e) => {
@@ -120,7 +110,7 @@ function Register({ setIsLoginModalOpen }) {
     if (!location) { toast.warning("Please allow location access first.", { position: "top-center" }); requestLocation(); return; }
     try {
       const currentUser = auth.currentUser;
-      if (!currentUser) { toast.error("Login required.", { position: "top-center" }); return; }
+      if (!isRealUser(currentUser)) { toast.error("Login required.", { position: "top-center" }); return; }
       const donorDocRef = doc(db, "Donors", currentUser.uid);
       if ((await getDoc(donorDocRef)).exists()) { toast.warning("Already registered as a donor.", { position: "top-center" }); setIsDonor(true); return; }
       await setDoc(donorDocRef, { fullname: donorFullname || "", email: currentUser.email || "", phoneNo: donorPhoneNo || "", bloodType: donorBloodtype || "", address: donorAddress || "", location: { latitude: Number(location.latitude), longitude: Number(location.longitude) }, geoHash: encodeGeoHash(Number(location.latitude), Number(location.longitude)), registeredAt: new Date().toISOString() });

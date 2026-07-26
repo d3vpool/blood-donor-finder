@@ -3,6 +3,7 @@ import { collection, query, where, onSnapshot, doc, getDoc, updateDoc } from "fi
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { toast } from "react-toastify";
+import { isRealUser } from "../utils/authUser";
 
 const DonorInbox = () => {
     const [incomingRequests, setIncomingRequests] = useState([]);
@@ -19,7 +20,7 @@ const DonorInbox = () => {
                 firestoreUnsub = null;
             }
 
-            if (!user) {
+            if (!isRealUser(user)) {
                 setIncomingRequests([]);
                 setDonorProfile(null);
                 setLoading(false);
@@ -111,7 +112,7 @@ const DonorInbox = () => {
         );
     }
 
-    if (!auth.currentUser || incomingRequests.length === 0) {
+    if (!isRealUser(auth.currentUser) || incomingRequests.length === 0) {
         return null;
     }
 

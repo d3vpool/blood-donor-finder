@@ -5,6 +5,8 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { toast } from "react-toastify";
 import { encodeGeoHash } from "../utils/geoHash";
+import { isRealUser } from "../utils/authUser";
+import { getCurrentCoordinates, geolocationErrorMessage } from "../utils/geolocation";
 
 const inputClass = "w-full py-3.5 px-4 border border-slate-200 rounded-xl text-sm font-semibold bg-slate-50 text-slate-900 focus:outline-none focus:border-red-500 focus:ring-4 focus:ring-red-500/10 focus:bg-white transition-all duration-200 shadow-sm hover:border-slate-300";
 const labelClass = "block text-[10px] uppercase tracking-wider font-extrabold text-slate-400 mb-2";
@@ -26,36 +28,28 @@ function RequestBlood({ setIsLoginModalOpen }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+      setUser(isRealUser(currentUser) ? currentUser : null);
       setLoadingAuth(false);
     });
     return () => unsubscribe();
   }, []);
 
-  const requestLocation = () => {
-    if (!navigator.geolocation) {
-      setLocationError("Geolocation is not supported by your browser.");
-      toast.error("Geolocation not supported", { position: "top-center" });
-      return;
-    }
+  const requestLocation = async () => {
     setDetectingLocation(true);
     setLocationError("");
     toast.info("Requesting hospital coordinates...", { position: "top-center" });
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude: lat, longitude: lng } = position.coords;
-        setLatitude(Number(lat).toFixed(6));
-        setLongitude(Number(lng).toFixed(6));
-        setDetectingLocation(false);
-        toast.success("Hospital coordinates captured!", { position: "top-center" });
-      },
-      (error) => {
-        setDetectingLocation(false);
-        setLocationError(error.message || "Location error");
-        toast.error("Failed to detect location. Enter manually.", { position: "top-center" });
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
+    try {
+      const { latitude: lat, longitude: lng } = await getCurrentCoordinates();
+      setLatitude(Number(lat).toFixed(6));
+      setLongitude(Number(lng).toFixed(6));
+      toast.success("Hospital coordinates captured!", { position: "top-center" });
+    } catch (error) {
+      const message = geolocationErrorMessage(error);
+      setLocationError(message);
+      toast.error(message, { position: "top-center" });
+    } finally {
+      setDetectingLocation(false);
+    }
   };
 
   const handleRequestSubmit = async (e) => {
@@ -75,7 +69,7 @@ function RequestBlood({ setIsLoginModalOpen }) {
     setSubmitting(true);
     try {
       const currentUser = auth.currentUser;
-      if (!currentUser) {
+      if (!isRealUser(currentUser)) {
         toast.error("Login required to submit request.", { position: "top-center" });
         return;
       }

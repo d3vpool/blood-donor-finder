@@ -3,8 +3,9 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { setupAutoRegistration, initMessaging, requestNotificationPermissionAndGetToken, onForegroundMessage } from "./firebaseMessaging";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "./firebase";
+import { isRealUser } from "./utils/authUser";
 
 import Header from "./components/Header";
 import Hero from "./components/Hero";
@@ -66,15 +67,18 @@ function App() {
       console.warn("initMessaging failed:", e);
     });
 
-    // register for auth changes; when user signs in, register FCM token
+    // Clear leftover anonymous sessions from older search flow
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log('onAuthStateChanged fired. auth:', auth);
-      console.log('onAuthStateChanged fired. user (raw):', user);
-      if (user && typeof user.uid === 'undefined') {
-        console.warn('onAuthStateChanged: user object has no uid property:', user);
+      if (user?.isAnonymous) {
+        try {
+          await signOut(auth);
+        } catch (e) {
+          console.warn("Failed to clear anonymous session:", e);
+        }
+        return;
       }
 
-      if (user) {
+      if (isRealUser(user)) {
         try {
           await setupAutoRegistration({ uid: user.uid });
         } catch (e) {
