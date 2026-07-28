@@ -1,24 +1,48 @@
-rules_version = '2'; 
-service cloud.firestore { 
-    match /databases/{database}/documents { 
-        match /Users/{userId} { 
-            allow read, write: if request.auth != null && request.auth.uid == userId;
-        } 
-        match /Donors/{donorId}{
-            allow read: if true;
-            allow write: if request.auth != null && request.auth.uid == donorId;
-        }
-        match /UserTokens/{uid}{
-            allow read, write: if request.auth != null && request.auth.uid == uid;
-        }
-        match /requests/{reqId}{
-            allow create, read: if request.auth != null;
-            allow update: if request.auth != null
-                         && request.auth.uid == resource.data.fromUid;
-        }
-        match /BloodRequests/{reqId}{
-            allow create, read: if request.auth != null;
-            allow update: if request.auth != null && request.auth.uid == resource.data.userId;
-        }
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /Users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+
+    match /Donors/{donorId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == donorId;
+    }
+
+    match /UserTokens/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /requests/{reqId} {
+      allow create, read: if request.auth != null;
+      allow update: if request.auth != null
+                    && request.auth.uid == resource.data.fromUid;
+    }
+
+    match /BloodRequests/{reqId} {
+      allow create, read: if request.auth != null;
+
+      // Requester manages their request lifecycle;
+      // matched donors may accept or decline a still-pending request.
+      allow update: if request.auth != null && (
+        request.auth.uid == resource.data.userId
+        || isDonorAccepting()
+        || isDonorDeclining()
+      );
+
+      function isDonorAccepting() {
+        return resource.data.status == 'pending'
+          && request.resource.data.status == 'accepted'
+          && request.resource.data.acceptedBy == request.auth.uid;
+      }
+
+      function isDonorDeclining() {
+        return resource.data.status == 'pending'
+          && request.resource.data.status == 'pending'
+          && request.resource.data.declinedBy is list
+          && request.auth.uid in request.resource.data.declinedBy;
+      }
+    }
+  }
 }

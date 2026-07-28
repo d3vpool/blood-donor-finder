@@ -6,6 +6,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "./firebase";
 import { isRealUser } from "./utils/authUser";
+import { checkPwaAuthPersistence, isRunningAsPwa } from "./utils/checkPwaAuth";
 
 import Header from "./components/Header";
 import Hero from "./components/Hero";
@@ -20,6 +21,7 @@ import DonorMap from "./components/DonorMap";
 import Signup from "./components/SignUp";
 import ActiveRequests from "./components/ActiveRequests";
 import DonorInbox from "./components/DonorInbox";
+import DonorLiveTracker from "./components/DonorLiveTracker";
 import Modal from "./components/modal";
 
 function App() {
@@ -90,6 +92,19 @@ function App() {
     return () => {
       try { unsubscribe(); } catch (_) { }
     };
+  }, []);
+
+  // Task 1.2 — Check PWA Auth persistence once on mount
+  useEffect(() => {
+    if (isRunningAsPwa()) {
+      checkPwaAuthPersistence().then(({ isAuthenticated, warning }) => {
+        if (warning) {
+          console.warn("[PWA Auth Check]", warning);
+        } else if (isAuthenticated) {
+          console.log("[PWA Auth Check] Auth session persisted correctly in installed PWA context.");
+        }
+      });
+    }
   }, []);
 
   // Firebase Cloud Messaging integration
@@ -233,6 +248,7 @@ function App() {
         <RequestBlood setIsLoginModalOpen={setIsLoginModalOpen} />
         <ActiveRequests />
         <DonorInbox />
+        <DonorLiveTracker />
         <About />
         <Footer />
         <ContactModal />

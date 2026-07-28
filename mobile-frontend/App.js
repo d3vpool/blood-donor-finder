@@ -8,6 +8,7 @@ import StatisticsSection from './src/components/StatisticsSection';
 import FindDonorsSection from './src/components/FindDonorsSection';
 import BecomeDonorSection from './src/components/BecomeDonorSection';
 import AboutSection from './src/components/AboutSection';
+import LiveTrackingSection from './src/components/LiveTrackingSection';
 import Footer from './src/components/Footer';
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
           <HeroSection />
           <StatisticsSection />
           <FindDonorsSection />
+          <LiveTrackingSection />
           <BecomeDonorSection />
           <AboutSection />
         </ScrollView>
