@@ -1,19 +1,29 @@
 {
-    "indexes": [
-        {
-            "collectionGroup": "Donors",
-            "queryScope": "COLLECTION",
-            "fields": [
-                {
-                    "fieldPath": "bloodType",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "geohash",
-                    "order": "ASCENDING"
-                }
-            ]
-        }
-    ],
-    "fieldOverrides": []
+  "indexes": [
+    {
+      "collectionGroup": "Donors",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "bloodType", "order": "ASCENDING" },
+        { "fieldPath": "geoHash", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "Donors",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "bloodType", "order": "ASCENDING" },
+        { "fieldPath": "geohash", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "BloodRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "acceptedBy", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
 }

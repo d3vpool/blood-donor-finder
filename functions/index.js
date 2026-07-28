@@ -1,69 +1,89 @@
 /**
- * Import function triggers from their respective submodules:
+ * Race-safe blood-request acceptance + RTDB tracking lifecycle.
  *
- * const {onCall} = require("firebase-functions/v2/https");
- * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
+ * Exports:
+ *  - bloodRequestReceived (existing matching + FCM)
+ *  - acceptBloodRequest (callable transaction)
+ *  - declineBloodRequest (callable)
+ *  - onBloodRequestUpdated (RTDB session create/cleanup + requester FCM)
  */
 
 const {initializeApp} = require("firebase-admin/app");
-const {getFirestore} = require("firebase-admin/firestore");
-const {setGlobalOptions} = require("firebase-functions");
-const {onRequest} = require("firebase-functions/https");
-const logger = require("firebase-functions/logger");
-const {onDocumentCreated} = require("firebase-functions/v2/firestore");
+const {getFirestore, FieldValue} = require("firebase-admin/firestore");
+const {getDatabase} = require("firebase-admin/database");
 const {getMessaging} = require("firebase-admin/messaging");
+const {setGlobalOptions} = require("firebase-functions");
+const {logger} = require("firebase-functions");
+const {onDocumentCreated, onDocumentUpdated} = require("firebase-functions/v2/firestore");
+const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {geohashQueryBounds} = require("geofire-common");
 
 initializeApp();
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
 setGlobalOptions({maxInstances: 10});
-
-// Create and deploy your first functions
-// https://firebase.google.com/docs/functions/get-started
-
-// exports.helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
 
 const RADIUS_KM = 10;
 
 function haversineDistance(lat1, lng1, lat2, lng2) {
   const R = 6371;
-
   const toRad = (deg) => (deg * Math.PI) / 180;
-
   const dLat = toRad(lat2 - lat1);
   const dLng = toRad(lng2 - lng1);
-
   const a =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-        Math.sin(dLng / 2) ** 2;
-
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLng / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
   return R * c;
 }
 
+async function notifyUser(uid, title, body, data = {}) {
+  if (!uid) return;
+  const db = getFirestore();
+  const tokenDoc = await db.collection("UserTokens").doc(uid).get();
+  if (!tokenDoc.exists) return;
+  const tokens = tokenDoc.data()?.fcmTokens;
+  if (!Array.isArray(tokens) || tokens.length === 0) return;
+
+  try {
+    await getMessaging().sendEachForMulticast({
+      notification: {title, body},
+      data: Object.fromEntries(
+          Object.entries(data).map(([k, v]) => [k, String(v ?? "")]),
+      ),
+      tokens,
+    });
+  } catch (err) {
+    logger.warn("FCM notify failed", err);
+  }
+}
+
+async function createTrackingSession(requestId, requestData) {
+  const rtdb = getDatabase();
+  await rtdb.ref(`tracking/${requestId}`).set({
+    donorId: requestData.acceptedBy,
+    requesterId: requestData.userId,
+    status: "active",
+    hospital: requestData.location || null,
+    hospitalName: requestData.hospitalName || "",
+    patientName: requestData.patientName || "",
+    bloodType: requestData.bloodType || "",
+    createdAt: Date.now(),
+    location: null,
+  });
+}
+
+async function purgeTrackingSession(requestId) {
+  const rtdb = getDatabase();
+  await rtdb.ref(`tracking/${requestId}`).remove();
+}
 
 exports.bloodRequestReceived = onDocumentCreated("BloodRequests/{requestId}", async (event) => {
-  const patientName = event.data.data().patientName;
-  const bloodType = event.data.data().bloodType;
-  const geoHash = event.data.data().geoHash;
-  const urgency = event.data.data().urgency;
-  const {latitude, longitude} = event.data.data().location;
+  const data = event.data.data();
+  const patientName = data.patientName;
+  const bloodType = data.bloodType;
+  const geoHash = data.geoHash;
+  const urgency = data.urgency;
+  const {latitude, longitude} = data.location;
 
   logger.log(`Blood request from ${patientName} (${bloodType}) at ${geoHash}`);
   logger.log(`Urgency: ${urgency}`);
@@ -71,7 +91,6 @@ exports.bloodRequestReceived = onDocumentCreated("BloodRequests/{requestId}", as
 
   const center = [latitude, longitude];
   const db = getFirestore();
-
   const bounds = geohashQueryBounds(center, RADIUS_KM * 1000);
 
   const promises = bounds.map(([start, end]) =>
@@ -84,28 +103,33 @@ exports.bloodRequestReceived = onDocumentCreated("BloodRequests/{requestId}", as
   );
 
   const snapshots = await Promise.all(promises);
-
-
   const candidates = [];
   const now = Date.now();
+
   snapshots.forEach((snap) => {
-    snap.docs.forEach((doc) => {
-      const data = doc.data();
+    snap.docs.forEach((docSnap) => {
+      const donor = docSnap.data();
+
+      // Task 1.3 — skip donors who explicitly set available=false
+      if (donor.available === false) {
+        logger.log(`Skipping unavailable donor ${docSnap.id}`);
+        return;
+      }
+
       let snoozedUntilMs = 0;
-      if (data.snoozedUntil) {
-        if (typeof data.snoozedUntil.toMillis === "function") {
-          snoozedUntilMs = data.snoozedUntil.toMillis();
-        } else if (typeof data.snoozedUntil === "number") {
-          snoozedUntilMs = data.snoozedUntil;
-        } else if (typeof data.snoozedUntil === "string") {
-          snoozedUntilMs = new Date(data.snoozedUntil).getTime();
+      if (donor.snoozedUntil) {
+        if (typeof donor.snoozedUntil.toMillis === "function") {
+          snoozedUntilMs = donor.snoozedUntil.toMillis();
+        } else if (typeof donor.snoozedUntil === "number") {
+          snoozedUntilMs = donor.snoozedUntil;
+        } else if (typeof donor.snoozedUntil === "string") {
+          snoozedUntilMs = new Date(donor.snoozedUntil).getTime();
         }
       }
-      // Filter out snoozed donors automatically
       if (!snoozedUntilMs || snoozedUntilMs < now) {
-        candidates.push({id: doc.id, ...data});
+        candidates.push({id: docSnap.id, ...donor});
       } else {
-        logger.log(`Skipping snoozed donor ${doc.id} (snoozed until ${new Date(snoozedUntilMs).toISOString()})`);
+        logger.log(`Skipping snoozed donor ${docSnap.id}`);
       }
     });
   });
@@ -113,59 +137,182 @@ exports.bloodRequestReceived = onDocumentCreated("BloodRequests/{requestId}", as
   const nearByDonors = candidates
       .map((donor) => ({
         ...donor,
-        distance: haversineDistance(latitude, longitude, donor.location.latitude, donor.location.longitude),
+        distance: haversineDistance(
+            latitude,
+            longitude,
+            donor.location?.latitude,
+            donor.location?.longitude,
+        ),
       }))
-      .filter((donor) => donor.distance < RADIUS_KM)
+      .filter((donor) => Number.isFinite(donor.distance) && donor.distance < RADIUS_KM)
       .sort((a, b) => a.distance - b.distance);
 
   await event.data.ref.update({nearByDonors});
 
   const tokens = [];
-
-  const tokenPromises = nearByDonors.map(async (donor) => {
+  await Promise.all(nearByDonors.map(async (donor) => {
     const tokenDoc = await db.collection("UserTokens").doc(donor.id).get();
-
     if (tokenDoc.exists) {
-      const data = tokenDoc.data();
-      if (data.fcmTokens && Array.isArray(data.fcmTokens)) {
-        tokens.push(...data.fcmTokens);
-      }
+      const tokenData = tokenDoc.data();
+      if (Array.isArray(tokenData.fcmTokens)) tokens.push(...tokenData.fcmTokens);
     }
-  });
+  }));
 
-  await Promise.all(tokenPromises);
-
-  console.log(`Found ${tokens.length} FCM tokens to notify`);
-
+  logger.log(`Found ${tokens.length} FCM tokens to notify`);
 
   if (tokens.length > 0) {
-    const message = {
-      notification: {
-        title: "Urgent Blood Request",
-        body: `${patientName} needs ${bloodType} blood urgently! (${urgency} priority)`,
-      },
-      tokens: tokens,
-    };
-
     try {
-      const response = await getMessaging().sendEachForMulticast(message);
-      console.log(`${response.successCount} messages were sent successfully`);
-
-      if (response.failureCount > 0) {
-        const failedTokens = [];
-        response.responses.forEach((resp, idx) => {
-          if (!resp.success) {
-            failedTokens.push(tokens[idx]);
-          }
-        });
-        console.log("List of tokens that caused failures: " + failedTokens);
-        // Optional: Remove these failed tokens from the UserTokens collection here
-      }
+      const response = await getMessaging().sendEachForMulticast({
+        notification: {
+          title: "Urgent Blood Request",
+          body: `${patientName} needs ${bloodType} blood urgently! (${urgency} priority)`,
+        },
+        data: {requestId: event.params.requestId, type: "blood_request"},
+        tokens,
+      });
+      logger.log(`${response.successCount} messages were sent successfully`);
     } catch (error) {
-      console.log("Error Sending Multicast Message:", error);
+      logger.error("Error Sending Multicast Message:", error);
     }
   }
 
+  logger.log(`Found ${nearByDonors.length} donors within ${RADIUS_KM}km`);
+});
 
-  console.log(`Founded ${nearByDonors.length} donors within ${RADIUS_KM}km`, nearByDonors);
+/**
+ * Callable: race-safe accept via Firestore transaction + RTDB session bootstrap.
+ */
+exports.acceptBloodRequest = onCall(async (request) => {
+  if (!request.auth?.uid) {
+    throw new HttpsError("unauthenticated", "Login required to accept a request.");
+  }
+
+  const requestId = request.data?.requestId;
+  const donorName = request.data?.donorName || "A Hero Donor";
+  if (!requestId || typeof requestId !== "string") {
+    throw new HttpsError("invalid-argument", "requestId is required.");
+  }
+
+  const uid = request.auth.uid;
+  const db = getFirestore();
+  const ref = db.collection("BloodRequests").doc(requestId);
+
+  let acceptedPayload = null;
+
+  try {
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) {
+        throw new HttpsError("not-found", "Blood request not found.");
+      }
+      const data = snap.data();
+      if (data.status !== "pending") {
+        throw new HttpsError(
+            "failed-precondition",
+            data.status === "accepted" ?
+              "Another donor already accepted this request." :
+              `Request is ${data.status} and cannot be accepted.`,
+        );
+      }
+      if (Array.isArray(data.declinedBy) && data.declinedBy.includes(uid)) {
+        throw new HttpsError("failed-precondition", "You previously declined this request.");
+      }
+      if (data.userId === uid) {
+        throw new HttpsError("failed-precondition", "You cannot accept your own request.");
+      }
+
+      acceptedPayload = {
+        status: "accepted",
+        acceptedBy: uid,
+        acceptedByName: donorName,
+        acceptedAt: new Date().toISOString(),
+        trackingActive: true,
+      };
+      tx.update(ref, acceptedPayload);
+    });
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    logger.error("acceptBloodRequest transaction failed", err);
+    throw new HttpsError("internal", err.message || "Accept failed.");
+  }
+
+  const fresh = (await ref.get()).data();
+  try {
+    await createTrackingSession(requestId, fresh);
+  } catch (err) {
+    logger.warn("RTDB tracking session create failed (is Realtime Database enabled?)", err);
+  }
+
+  await notifyUser(
+      fresh.userId,
+      "Donor Accepted!",
+      `${donorName} accepted your ${fresh.bloodType} request. Live tracking is starting.`,
+      {requestId, type: "request_accepted"},
+  );
+
+  return {ok: true, requestId, status: "accepted"};
+});
+
+/**
+ * Callable: donor declines a pending request (does not close it for others).
+ */
+exports.declineBloodRequest = onCall(async (request) => {
+  if (!request.auth?.uid) {
+    throw new HttpsError("unauthenticated", "Login required.");
+  }
+  const requestId = request.data?.requestId;
+  if (!requestId || typeof requestId !== "string") {
+    throw new HttpsError("invalid-argument", "requestId is required.");
+  }
+
+  const uid = request.auth.uid;
+  const ref = getFirestore().collection("BloodRequests").doc(requestId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Blood request not found.");
+  const data = snap.data();
+  if (data.status !== "pending") {
+    throw new HttpsError("failed-precondition", "Only pending requests can be declined.");
+  }
+
+  await ref.update({declinedBy: FieldValue.arrayUnion(uid)});
+  return {ok: true, requestId, status: "declined_by_you"};
+});
+
+/**
+ * Keep RTDB tracking in sync with request lifecycle (fulfill/cancel cleanup,
+ * and session create if accept happened via client transaction).
+ */
+exports.onBloodRequestUpdated = onDocumentUpdated("BloodRequests/{requestId}", async (event) => {
+  const before = event.data.before.data() || {};
+  const after = event.data.after.data() || {};
+  const requestId = event.params.requestId;
+
+  if (before.status === "pending" && after.status === "accepted" && after.acceptedBy) {
+    try {
+      await createTrackingSession(requestId, after);
+    } catch (err) {
+      logger.warn("RTDB create on update failed", err);
+    }
+    if (before.acceptedBy !== after.acceptedBy) {
+      await notifyUser(
+          after.userId,
+          "Donor Accepted!",
+          `${after.acceptedByName || "A donor"} accepted your request. Tracking is live.`,
+          {requestId, type: "request_accepted"},
+      );
+    }
+  }
+
+  const closed = ["fulfilled", "cancelled"].includes(after.status);
+  const wasOpen = !["fulfilled", "cancelled"].includes(before.status);
+  if (closed && wasOpen) {
+    try {
+      await purgeTrackingSession(requestId);
+      if (after.trackingActive) {
+        await event.data.after.ref.update({trackingActive: false});
+      }
+    } catch (err) {
+      logger.warn("RTDB purge failed", err);
+    }
+  }
 });

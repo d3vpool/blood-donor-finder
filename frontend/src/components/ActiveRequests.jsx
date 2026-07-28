@@ -1,26 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import { isRealUser } from '../utils/authUser';
+import { completeBloodRequest } from '../utils/requestActions';
+import LiveTrackingMap from './LiveTrackingMap';
+import { toast } from 'react-toastify';
 
 const ActiveRequests = () => {
     const [bloodRequests, setBloodRequests] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [updatingId, setUpdatingId] = useState(null);
 
     useEffect(() => {
         let firestoreUnsub = null;
 
-        // Wait for Firebase Auth to confirm the user's identity before querying
         const authUnsub = onAuthStateChanged(auth, (user) => {
-            // Clean up any previous Firestore listener when auth state changes
             if (firestoreUnsub) {
                 firestoreUnsub();
                 firestoreUnsub = null;
             }
 
             if (!isRealUser(user)) {
-                // Not logged in — nothing to show
                 setBloodRequests([]);
                 setLoading(false);
                 return;
@@ -47,30 +48,25 @@ const ActiveRequests = () => {
             });
         });
 
-        // Cleanup both listeners on unmount
         return () => {
             authUnsub();
             if (firestoreUnsub) firestoreUnsub();
         };
     }, []);
 
-    async function cancelRequest(bloodRequestId) {
+    async function handleStatus(bloodRequestId, status) {
+        setUpdatingId(bloodRequestId);
         try {
-            await updateDoc(doc(db, "BloodRequests", bloodRequestId), {
-                status: "cancelled"
-            });
+            await completeBloodRequest(bloodRequestId, status);
+            toast.success(
+                status === "fulfilled" ? "Marked fulfilled — live tracking ended." : "Request cancelled — tracking cleared.",
+                { position: "top-center" }
+            );
         } catch (e) {
-            console.error("Failed to cancel request:", e);
-        }
-    }
-
-    async function updateStatus(bloodRequestId) {
-        try {
-            await updateDoc(doc(db, "BloodRequests", bloodRequestId), {
-                status: "fulfilled"
-            });
-        } catch (e) {
-            console.error("Failed to fulfill request:", e);
+            console.error("Failed to update request:", e);
+            toast.error("Failed to update request status.", { position: "top-center" });
+        } finally {
+            setUpdatingId(null);
         }
     }
 
@@ -91,7 +87,7 @@ const ActiveRequests = () => {
     }
 
     if (bloodRequests.length === 0) {
-        return null; // Don't show the dashboard if they have no requests
+        return null;
     }
 
     const urgencyColors = { Critical: "text-red-700 bg-red-50 border-red-200", Urgent: "text-amber-700 bg-amber-50 border-amber-200", Standard: "text-blue-700 bg-blue-50 border-blue-200" };
@@ -101,12 +97,12 @@ const ActiveRequests = () => {
             <div className="max-w-4xl mx-auto px-6">
                 <div className="text-center max-w-lg mx-auto mb-12">
                     <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">Your Active Requests</h2>
-                    <p className="text-sm text-slate-500 leading-relaxed">Manage, track, and complete the emergency blood requests you've submitted.</p>
+                    <p className="text-sm text-slate-500 leading-relaxed">Track donors live after acceptance, then mark fulfilled or cancel when done.</p>
                 </div>
 
-                <div className="grid gap-6 md:grid-cols-2">
+                <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
                     {bloodRequests.map((bloodRequest) => (
-                        <div key={bloodRequest.id} className="bg-white rounded-2xl shadow-xl shadow-slate-100/50 border border-slate-100 p-6 flex flex-col hover:shadow-2xl hover:shadow-slate-100/80 transition-all duration-300 hover:-translate-y-1">
+                        <div key={bloodRequest.id} className="bg-white rounded-2xl shadow-xl shadow-slate-100/50 border border-slate-100 p-6 flex flex-col hover:shadow-2xl hover:shadow-slate-100/80 transition-all duration-300">
                             
                             <div className="flex justify-between items-start mb-5 gap-2">
                                 <div>
@@ -117,6 +113,7 @@ const ActiveRequests = () => {
                                 </div>
                                 <span className={`text-[10px] font-black tracking-widest uppercase px-2.5 py-1 rounded-full border select-none ${
                                     bloodRequest.status === 'pending' ? 'bg-amber-50 border-amber-200 text-amber-700' :
+                                    bloodRequest.status === 'accepted' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
                                     bloodRequest.status === 'fulfilled' ? 'bg-green-50 border-green-200 text-green-700' :
                                     'bg-slate-50 border-slate-200 text-slate-600'
                                 }`}>
@@ -124,7 +121,7 @@ const ActiveRequests = () => {
                                 </span>
                             </div>
 
-                            <div className="space-y-2 text-sm text-slate-600 flex-grow mb-6 font-medium">
+                            <div className="space-y-2 text-sm text-slate-600 flex-grow mb-4 font-medium">
                                 <p><strong className="text-slate-900">Hospital:</strong> {bloodRequest.hospitalName}</p>
                                 <p className="flex items-center gap-1.5">
                                     <strong className="text-slate-900">Urgency:</strong> 
@@ -133,20 +130,35 @@ const ActiveRequests = () => {
                                     </span>
                                 </p>
                                 <p><strong className="text-slate-900">Requested On:</strong> {new Date(bloodRequest.requestedAt || Date.now()).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                                {bloodRequest.status === 'accepted' && bloodRequest.acceptedByName && (
+                                    <p className="text-emerald-700 font-bold text-xs bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
+                                        Accepted by {bloodRequest.acceptedByName}
+                                        {bloodRequest.acceptedAt ? ` · ${new Date(bloodRequest.acceptedAt).toLocaleString()}` : ''}
+                                    </p>
+                                )}
                             </div>
+
+                            {bloodRequest.status === 'accepted' && (
+                                <LiveTrackingMap
+                                    requestId={bloodRequest.id}
+                                    hospitalFallback={bloodRequest.location}
+                                    donorName={bloodRequest.acceptedByName || 'Donor'}
+                                />
+                            )}
                             
-                            {/* Only show action buttons if it's pending */}
-                            {bloodRequest.status === "pending" && (
+                            {(bloodRequest.status === "pending" || bloodRequest.status === "accepted") && (
                                 <div className="grid grid-cols-2 gap-3 mt-auto pt-4 border-t border-slate-100">
                                     <button 
-                                        onClick={() => updateStatus(bloodRequest.id)}
-                                        className="py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-sm shadow-green-500/10 hover:scale-[1.01] active:scale-[0.99] text-xs cursor-pointer flex items-center justify-center gap-1.5"
+                                        onClick={() => handleStatus(bloodRequest.id, "fulfilled")}
+                                        disabled={updatingId === bloodRequest.id}
+                                        className="py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-sm shadow-green-500/10 hover:scale-[1.01] active:scale-[0.99] text-xs cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60"
                                     >
-                                        ✓ Mark Fulfilled
+                                        {updatingId === bloodRequest.id ? "Updating..." : "✓ Mark Fulfilled"}
                                     </button>
                                     <button 
-                                        onClick={() => cancelRequest(bloodRequest.id)}
-                                        className="py-3 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-colors hover:scale-[1.01] active:scale-[0.99] text-xs cursor-pointer flex items-center justify-center gap-1.5"
+                                        onClick={() => handleStatus(bloodRequest.id, "cancelled")}
+                                        disabled={updatingId === bloodRequest.id}
+                                        className="py-3 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-colors hover:scale-[1.01] active:scale-[0.99] text-xs cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60"
                                     >
                                         ✕ Cancel
                                     </button>

@@ -26,6 +26,9 @@ function Register({ setIsLoginModalOpen }) {
   const [loading, setLoading] = useState(true);
   const [isDonor, setIsDonor] = useState(false);
   const [snoozedUntil, setSnoozedUntil] = useState(null);
+  // Task 1.1 — availability toggle
+  const [available, setAvailable] = useState(true);
+  const [togglingAvailability, setTogglingAvailability] = useState(false);
   const [fetchingLocation, setFetchingLocation] = useState(false);
   const lastUidRef = useRef(null);
 
@@ -61,6 +64,38 @@ function Register({ setIsLoginModalOpen }) {
     }
   }
 
+  /**
+   * Task 1.1 + 1.3 — Toggle donor availability on/off.
+   * Only the authenticated donor can write to their own Donors/{uid} doc
+   * (enforced by the Firestore security rule: allow write if request.auth.uid == donorId).
+   */
+  async function toggleAvailability() {
+    if (!auth.currentUser || auth.currentUser.isAnonymous) {
+      toast.error("You must be logged in to update your availability.", { position: "top-center" });
+      return;
+    }
+    setTogglingAvailability(true);
+    const next = !available;
+    try {
+      await updateDoc(doc(db, "Donors", auth.currentUser.uid), {
+        available: next,
+        // Also clear the snooze when going back to available
+        ...(next ? { snoozedUntil: null } : {}),
+      });
+      setAvailable(next);
+      if (next) setSnoozedUntil(null);
+      toast.success(
+        next ? "You are now marked as Available ✓" : "You are now marked as Unavailable",
+        { position: "top-center" }
+      );
+    } catch (e) {
+      console.error("Failed to toggle availability:", e);
+      toast.error("Failed to update availability. Please try again.", { position: "top-center" });
+    } finally {
+      setTogglingAvailability(false);
+    }
+  }
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       const realUser = isRealUser(currentUser) ? currentUser : null;
@@ -78,6 +113,8 @@ function Register({ setIsLoginModalOpen }) {
           if (d.exists()) {
             setIsDonor(true);
             setSnoozedUntil(d.data().snoozedUntil || null);
+            // Task 1.1 — load persisted availability (default true if field is absent)
+            setAvailable(d.data().available !== false);
           } else {
             setIsDonor(false);
           }
@@ -179,6 +216,38 @@ function Register({ setIsLoginModalOpen }) {
             
             <div className="border-t border-slate-100 pt-6">
               <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-4">Manage Availability</p>
+
+              {/* Task 1.1 — Availability Toggle */}
+              <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 mb-3">
+                <div className="text-left">
+                  <p className="text-sm font-extrabold text-slate-900">
+                    {available ? "Available to Donate" : "Not Available"}
+                  </p>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                    {available
+                      ? "You will receive emergency match alerts"
+                      : "You won't receive emergency alerts"}
+                  </p>
+                </div>
+                <button
+                  id="donor-availability-toggle"
+                  onClick={toggleAvailability}
+                  disabled={togglingAvailability}
+                  aria-pressed={available}
+                  aria-label={available ? "Mark as unavailable" : "Mark as available"}
+                  className={`relative inline-flex h-7 w-13 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-60 ${
+                    available ? "bg-green-500" : "bg-slate-300"
+                  }`}
+                  style={{ width: "52px" }}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                      available ? "translate-x-6" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+
               {isSnoozedActive && (
                 <p className="text-xs text-amber-700 font-bold mb-4 bg-amber-50/80 py-2 px-3 rounded-xl border border-amber-200/70">
                   Snoozed until {new Date(snoozedUntil).toLocaleDateString()} ({Math.max(1, Math.ceil((snoozedUntil - Date.now()) / (1000 * 60 * 60 * 24)))} days left)
