@@ -1,0 +1,13 @@
+{
+  "rules": {
+    "tracking": {
+      "$requestId": {
+        ".read": "auth != null && (data.child('donorId').val() === auth.uid || data.child('requesterId').val() === auth.uid)",
+        ".write": "auth != null && ((!data.exists() && newData.child('donorId').val() === auth.uid) || data.child('donorId').val() === auth.uid || data.child('requesterId').val() === auth.uid)",
+        "location": {
+          ".write": "auth != null && root.child('tracking').child($requestId).child('donorId').val() === auth.uid"
+        }
+      }
+    }
+  }
+}
