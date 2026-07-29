@@ -2,9 +2,10 @@
   "rules": {
     "tracking": {
       "$requestId": {
-        ".read": "auth != null && (data.child('donorId').val() === auth.uid || data.child('requesterId').val() === auth.uid)",
+        ".read": "auth != null && (data.child('donorId').val() === auth.uid || data.child('requesterId').val() === auth.uid || newData.child('donorId').val() === auth.uid || newData.child('requesterId').val() === auth.uid)",
         ".write": "auth != null && ((!data.exists() && newData.child('donorId').val() === auth.uid) || data.child('donorId').val() === auth.uid || data.child('requesterId').val() === auth.uid)",
         "location": {
+          ".read": "auth != null && root.child('tracking').child($requestId).child('donorId').val() === auth.uid",
           ".write": "auth != null && root.child('tracking').child($requestId).child('donorId').val() === auth.uid"
         }
       }

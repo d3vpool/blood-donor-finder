@@ -57,22 +57,36 @@ function formatAge(updatedAt) {
 export default function LiveTrackingMap({ requestId, hospitalFallback, donorName }) {
   const [session, setSession] = useState(null);
   const [error, setError] = useState(null);
+  const [connecting, setConnecting] = useState(true);
   const [, setTick] = useState(0);
 
   useEffect(() => {
     if (!requestId) return undefined;
+    setConnecting(true);
+    // Give RTDB node up to 6 s to be created before showing an error
+    const connectTimeout = setTimeout(() => setConnecting(false), 6000);
     const unsub = subscribeToTracking(
       requestId,
       (data) => {
+        clearTimeout(connectTimeout);
+        setConnecting(false);
         setSession(data);
         setError(null);
       },
       (err) => {
+        // permission_denied while node doesn't exist yet is transient — swallow it
+        // until our connect window expires.
+        const msg = err?.message || "";
+        const isPermission = msg.includes("permission_denied") || msg.includes("Permission denied");
+        if (isPermission && connecting) return;
+        clearTimeout(connectTimeout);
+        setConnecting(false);
         console.error("Tracking subscribe error:", err);
-        setError(err?.message || "Unable to subscribe to live tracking.");
+        setError(msg || "Unable to subscribe to live tracking.");
       }
     );
-    return unsub;
+    return () => { clearTimeout(connectTimeout); unsub(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId]);
 
   // Refresh "updated ago" label
@@ -124,7 +138,13 @@ export default function LiveTrackingMap({ requestId, hospitalFallback, donorName
         </span>
       </div>
 
-      {error && (
+      {connecting && !session && (
+        <div className="px-4 py-2 text-xs font-bold text-slate-500 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
+          Connecting to live tracking…
+        </div>
+      )}
+      {error && !connecting && (
         <div className="px-4 py-2 text-xs font-bold text-amber-700 bg-amber-50 border-b border-amber-100">
           {error} — enable Firebase Realtime Database if this persists.
         </div>
