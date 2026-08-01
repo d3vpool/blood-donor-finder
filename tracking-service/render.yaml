@@ -1,0 +1,21 @@
+# Render blueprint — free tier web service for the LifeLink tracking service.
+# Secrets (REDIS_URL, FIREBASE_PROJECT_ID, GOOGLE_APPLICATION_CREDENTIALS) are
+# marked sync:false and must be set in the Render dashboard; never committed.
+services:
+  - type: web
+    name: lifelink-tracking-service
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8080
+      - key: REDIS_URL
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        sync: false

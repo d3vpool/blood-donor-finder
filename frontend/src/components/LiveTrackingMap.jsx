@@ -184,7 +184,7 @@ export default function LiveTrackingMap({ requestId, hospitalFallback, donorName
       )}
       {error && !connecting && (
         <div className="px-4 py-2 text-xs font-bold text-amber-700 bg-amber-50 border-b border-amber-100">
-          {error} — enable Firebase Realtime Database if this persists.
+          {error} — live tracking is unavailable right now.
         </div>
       )}
 
