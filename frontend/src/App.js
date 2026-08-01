@@ -22,6 +22,7 @@ import Signup from "./components/SignUp";
 import ActiveRequests from "./components/ActiveRequests";
 import DonorInbox from "./components/DonorInbox";
 import DonorLiveTracker from "./components/DonorLiveTracker";
+import LiveTrackingSection from "./components/LiveTrackingSection";
 import Modal from "./components/modal";
 
 function App() {
@@ -218,6 +219,8 @@ function App() {
           openSignup={openSignup}
         />
 
+        <LiveTrackingSection />
+
         <Hero />
 
         <Search
@@ -241,6 +244,7 @@ function App() {
             results={searchResults} 
             focusOn={focusOn} 
             isSearching={isSearching}
+            recipientLocation={recipientLocation}
           />
         )}
 

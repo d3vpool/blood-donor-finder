@@ -24,11 +24,13 @@ service cloud.firestore {
       allow create, read: if request.auth != null;
 
       // Requester manages their request lifecycle;
-      // matched donors may accept or decline a still-pending request.
+      // matched donors may accept or decline a still-pending request;
+      // the accepted donor may cancel (reopen to pending) after accepting.
       allow update: if request.auth != null && (
         request.auth.uid == resource.data.userId
         || isDonorAccepting()
         || isDonorDeclining()
+        || isDonorCancelling()
       );
 
       function isDonorAccepting() {
@@ -42,6 +44,13 @@ service cloud.firestore {
           && request.resource.data.status == 'pending'
           && request.resource.data.declinedBy is list
           && request.auth.uid in request.resource.data.declinedBy;
+      }
+
+      function isDonorCancelling() {
+        return resource.data.status == 'accepted'
+          && resource.data.acceptedBy == request.auth.uid
+          && request.resource.data.status == 'pending'
+          && request.resource.data.acceptedBy == null;
       }
     }
   }

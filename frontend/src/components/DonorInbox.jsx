@@ -4,7 +4,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { toast } from "react-toastify";
 import { isRealUser } from "../utils/authUser";
-import { acceptBloodRequest, declineBloodRequest } from "../utils/requestActions";
+import { acceptBloodRequest, declineBloodRequest, cancelAcceptedBloodRequest } from "../utils/requestActions";
 import LiveTrackingMap from "./LiveTrackingMap";
 
 const DonorInbox = () => {
@@ -14,6 +14,7 @@ const DonorInbox = () => {
   const [loading, setLoading] = useState(true);
   const [respondingId, setRespondingId] = useState(null);
   const [decliningId, setDecliningId] = useState(null);
+  const [cancellingId, setCancellingId] = useState(null);
 
   useEffect(() => {
     let pendingUnsub = null;
@@ -62,6 +63,8 @@ const DonorInbox = () => {
             if (req.userId === user.uid) return;
             if (Array.isArray(req.declinedBy) && req.declinedBy.includes(user.uid)) return;
 
+            const isTargetedAtMe = req.targetDonorId && req.targetDonorId === user.uid;
+
             const isDirectlyMatched =
               req.nearByDonors &&
               Array.isArray(req.nearByDonors) &&
@@ -71,7 +74,7 @@ const DonorInbox = () => {
 
             const isBloodTypeMatched = profile && req.bloodType === profile.bloodType;
 
-            if (isDirectlyMatched || isBloodTypeMatched) {
+            if (isTargetedAtMe || isDirectlyMatched || isBloodTypeMatched) {
               matched.push(req);
             }
           });
@@ -144,6 +147,22 @@ const DonorInbox = () => {
       toast.error(error?.message || "Could not decline request.", { position: "top-center" });
     } finally {
       setDecliningId(null);
+    }
+  };
+
+  const handleCancelAccepted = async (reqId) => {
+    if (!isRealUser(auth.currentUser)) return;
+    setCancellingId(reqId);
+    try {
+      await cancelAcceptedBloodRequest({ requestId: reqId });
+      toast.info("You cancelled this accepted request. It is now open for other donors again.", {
+        position: "top-center",
+      });
+    } catch (error) {
+      console.error("Error cancelling accepted request:", error);
+      toast.error(error?.message || "Could not cancel request.", { position: "top-center" });
+    } finally {
+      setCancellingId(null);
     }
   };
 
@@ -294,6 +313,13 @@ const DonorInbox = () => {
                 Call Emergency Contact
               </a>
             )}
+            <button
+              onClick={() => handleCancelAccepted(req.id)}
+              disabled={cancellingId === req.id}
+              className="mt-2 w-full py-2.5 bg-white border border-red-200 text-red-600 font-bold rounded-xl transition-colors hover:bg-red-50 hover:scale-[1.01] active:scale-[0.99] text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
+            >
+              {cancellingId === req.id ? "Cancelling..." : "✕ Cancel Request"}
+            </button>
           </div>
         )}
       </div>

@@ -37,6 +37,7 @@ blood-donor-finder/
 ├── functions/                   # Firebase Cloud Functions
 ├── backend/                     # Legacy backend (deprecated)
 ├── scripts/                     # Development scripts
+├── database.rules.json         # Realtime Database security rules
 ├── firebase.json               # Firebase configuration
 ├── firestore.rules             # Firestore security rules
 └── .firebaserc                 # Firebase project config
@@ -79,6 +80,7 @@ blood-donor-finder/
 6. **Firebase emulators**: Don't use emulators in production; they're development-only tools
 7. **Secret management**: Never commit service account keys or API keys
 8. **Browser compatibility**: Use feature detection, not browser detection
+9. **RTDB Security Rules Race Condition**: When subscribing to newly created RTDB nodes simultaneously with client/server bootstrap, include `newData` fallbacks in `.read` rules so the creator/listener is authorized even before initial node data exists
 
 ## 🧹 Linting & Formatting
 

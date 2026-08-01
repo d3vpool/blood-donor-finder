@@ -11,9 +11,13 @@ This project focuses on **real-world problem solving**, **clean architecture**, 
 
 ## ✨ Key Features
 
-- 🔍 Search donors by blood group and radius
-- 👤 Donor registration
-- 🔔 Real-time push notifications using Firebase Cloud Messaging (FCM)
+- 🔍 Search donors by blood group and radius, with distance shown on every donor card
+- 🎯 Send a blood request directly to a specific nearby donor
+- 🤝 Race-safe request acceptance — exactly one donor wins; accepted donors can cancel and reopen the request
+- 📍 Live donor GPS tracking on an embedded map with ETA and reciprocal contact info once a request is accepted
+- 🔔 Real-time push notifications using Firebase Cloud Messaging (FCM) to both parties on accept/cancel
+- 👤 Donor registration with availability and snooze controls
+- 🔐 Persistent login sessions (survive page refreshes and PWA relaunches)
 - ⚡ Fast and responsive React frontend
 - ☁️ Serverless backend with Firebase Cloud Functions
 
@@ -41,12 +45,14 @@ This project focuses on **real-world problem solving**, **clean architecture**, 
 ```text
 blood-donor-finder/
 ├── frontend/ # React application
-│ ├── src/
-│ ├── public/
-│ └── package.json
-├── backend/ # Firebase Cloud Functions
+│   ├── src/
+│   ├── public/
+│   └── package.json
+├── functions/ # Firebase Cloud Functions
+├── backend/ # Legacy backend (deprecated)
 ├── firebase.json # Firebase configuration
 ├── firestore.rules # Firestore security rules
+├── database.rules.json # Realtime Database security rules
 ├── .firebaserc # Firebase project config
 └── README.md
 ```
@@ -64,13 +70,13 @@ cd frontend
 npm install
 npm start
 ```
-The app will start on: 
+The app will start on:
 ```bash
 http://localhost:3000
 ```
 ### 3️. Backend (Firebase Functions)
 ```bash
-cd backend
+cd functions
 npm install
 firebase emulators:start
 ```

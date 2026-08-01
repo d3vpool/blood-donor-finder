@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import ContactModal from "./ContactModal";
+import DirectRequestModal from "./DirectRequestModal";
 
 function SearchResultSkeleton() {
   return (
@@ -23,8 +24,16 @@ function SearchResultSkeleton() {
   );
 }
 
-export default function SearchResult({ results = [], focusOn, isSearching }) {
+function formatDistance(meters) {
+  const m = Number(meters);
+  if (!Number.isFinite(m) || m < 0) return null;
+  if (m < 1000) return `${Math.round(m)} m`;
+  return `${(m / 1000).toFixed(1)} km`;
+}
+
+export default function SearchResult({ results = [], focusOn, isSearching, recipientLocation }) {
   const [selectedUser, setSelectedUser] = useState(null);
+  const [requestTarget, setRequestTarget] = useState(null);
 
   const handleShowOnMap = (lat, lng) => {
     const container = document.getElementById("donorMapContainer");
@@ -70,7 +79,8 @@ export default function SearchResult({ results = [], focusOn, isSearching }) {
                 const lat = user?.location?.latitude ?? user?.location?.lat;
                 const lng = user?.location?.longitude ?? user?.location?.lng;
                 const initials = (user.fullname || "Donor").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-                
+                const distanceLabel = formatDistance(user.distance);
+
                 return (
                   <div key={user.email || idx} className="bg-white p-7 rounded-3xl border border-slate-100 shadow-[0_4px_20px_rgba(15,23,42,0.02)] hover:shadow-[0_20px_45px_rgba(15,23,42,0.06)] hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between">
                     <div>
@@ -80,7 +90,10 @@ export default function SearchResult({ results = [], focusOn, isSearching }) {
                         </div>
                         <div className="min-w-0 flex-grow">
                           <span className="block font-extrabold text-slate-900 text-base tracking-tight truncate leading-tight">{user.fullname}</span>
-                          <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Active Volunteer</span>
+                          <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500 mt-0.5">
+                            <svg className="w-3.5 h-3.5 text-red-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+                            {distanceLabel ? `${distanceLabel} from you` : "Active Volunteer"}
+                          </span>
                         </div>
                         <span className="bg-red-50 text-red-700 font-black text-xs px-3.5 py-1.5 rounded-2xl border border-red-100 shrink-0 select-none shadow-sm shadow-red-500/5">{user.bloodType || user.bloodGroup}</span>
                       </div>
@@ -102,6 +115,12 @@ export default function SearchResult({ results = [], focusOn, isSearching }) {
                     </div>
 
                     <div className="flex flex-col gap-2">
+                      <button
+                        className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-none rounded-xl py-3 px-4 w-full font-bold cursor-pointer transition-all shadow-md shadow-green-500/10 hover:shadow-lg hover:shadow-green-500/20 hover:scale-[1.01] active:scale-[0.99]"
+                        onClick={() => setRequestTarget(user)}
+                      >
+                        Send Blood Request
+                      </button>
                       <button
                         className="bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-none rounded-xl py-3 px-4 w-full font-bold cursor-pointer transition-all shadow-md shadow-red-500/10 hover:shadow-lg hover:shadow-red-500/20 hover:scale-[1.01] active:scale-[0.99]"
                         onClick={() => setSelectedUser(user)}
@@ -125,6 +144,14 @@ export default function SearchResult({ results = [], focusOn, isSearching }) {
 
       {selectedUser && (
         <ContactModal user={selectedUser} onClose={() => setSelectedUser(null)} />
+      )}
+
+      {requestTarget && (
+        <DirectRequestModal
+          donor={requestTarget}
+          recipientLocation={recipientLocation}
+          onClose={() => setRequestTarget(null)}
+        />
       )}
     </section>
   );

@@ -3,6 +3,10 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { subscribeToTracking } from "../utils/liveTracking";
+import { distanceBetween } from "geofire-common";
+
+// Rough average urban travel speed used for the ETA estimate (straight-line based).
+const ASSUMED_SPEED_KMH = 30;
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -51,10 +55,24 @@ function formatAge(updatedAt) {
   return `${Math.floor(sec / 60)}m ago`;
 }
 
+function formatDistanceKm(meters) {
+  const m = Number(meters);
+  if (!Number.isFinite(m) || m <= 0) return null;
+  if (m < 1000) return `${Math.round(m)} m`;
+  return `${(m / 1000).toFixed(1)} km`;
+}
+
+function formatEta(etaMinutes) {
+  const m = Number(etaMinutes);
+  if (!Number.isFinite(m) || m <= 0) return null;
+  if (m < 1) return "<1 min";
+  return `~${Math.ceil(m)} min`;
+}
+
 /**
  * Live map for an accepted blood request. Requester (and donor) see donor GPS from RTDB.
  */
-export default function LiveTrackingMap({ requestId, hospitalFallback, donorName }) {
+export default function LiveTrackingMap({ requestId, hospitalFallback, donorName, tall = false }) {
   const [session, setSession] = useState(null);
   const [error, setError] = useState(null);
   const [connecting, setConnecting] = useState(true);
@@ -116,6 +134,15 @@ export default function LiveTrackingMap({ requestId, hospitalFallback, donorName
   if (hasHospital) points.push([hospitalLat, hospitalLng]);
   if (hasDonor) points.push([donorLat, donorLng]);
 
+  const donorDistMeters =
+    hasHospital && hasDonor
+      ? distanceBetween([donorLat, donorLng], [hospitalLat, hospitalLng])
+      : null;
+  const etaMinutes =
+    donorDistMeters != null ? (donorDistMeters / 1000 / ASSUMED_SPEED_KMH) * 60 : null;
+  const distanceLabel = formatDistanceKm(donorDistMeters);
+  const etaLabel = formatEta(etaMinutes);
+
   return (
     <div className="mt-4 rounded-2xl overflow-hidden border border-slate-200 bg-slate-50">
       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-200 bg-white">
@@ -133,9 +160,20 @@ export default function LiveTrackingMap({ requestId, hospitalFallback, donorName
             )}
           </p>
         </div>
-        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
-          {session?.status === "ended" ? "Ended" : formatAge(session?.location?.updatedAt)}
-        </span>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {etaLabel && distanceLabel && (
+            <span
+              className="flex items-center gap-1.5 text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100"
+              title={`Estimated arrival · ~${distanceLabel} remaining`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              ETA {etaLabel} · {distanceLabel}
+            </span>
+          )}
+          <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+            {session?.status === "ended" ? "Ended" : formatAge(session?.location?.updatedAt)}
+          </span>
+        </div>
       </div>
 
       {connecting && !session && (
@@ -150,7 +188,7 @@ export default function LiveTrackingMap({ requestId, hospitalFallback, donorName
         </div>
       )}
 
-      <div className="relative h-[280px] w-full">
+      <div className={`relative ${tall ? "h-[440px]" : "h-[280px]"} w-full`}>
         <MapContainer
           center={center}
           zoom={13}

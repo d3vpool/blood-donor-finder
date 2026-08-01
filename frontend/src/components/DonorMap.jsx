@@ -36,11 +36,17 @@ const donorIcon = new L.Icon({
   shadowSize: [41, 41],
 });
 
+function formatDistance(meters) {
+  const m = Number(meters);
+  if (!Number.isFinite(m) || m < 0) return null;
+  if (m < 1000) return `${Math.round(m)} m`;
+  return `${(m / 1000).toFixed(1)} km`;
+}
+
 /**
  * Inner component — must live inside <MapContainer> to use useMap().
  * Handles: pan-to-location on search, and exposing focusOn to parent.
- */
-function MapController({ recipientLocation, setMapController }) {
+ */function MapController({ recipientLocation, setMapController }) {
   const map = useMap();
 
   // Expose focusOn so SearchResult card clicks can pan the map
@@ -139,6 +145,12 @@ export default function DonorMap({ recipientLocation, donors = [], setMapControl
                   {donor.bloodType && (
                     <div className="inline-block bg-red-50 text-red-700 border border-red-100 font-black text-xs px-2.5 py-0.5 rounded-full mb-3 select-none">
                       {donor.bloodType}
+                    </div>
+                  )}
+                  {formatDistance(donor.distance) && (
+                    <div className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-full ml-1.5 mb-3 select-none">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+                      {formatDistance(donor.distance)} away
                     </div>
                   )}
                   <div className="text-xs text-slate-600 space-y-1.5 font-medium mb-3">

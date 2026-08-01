@@ -89,8 +89,54 @@ exports.bloodRequestReceived = onDocumentCreated("BloodRequests/{requestId}", as
   logger.log(`Urgency: ${urgency}`);
   logger.log(`Location: ${latitude}, ${longitude}`);
 
-  const center = [latitude, longitude];
   const db = getFirestore();
+
+  // Direct/individual request to one specific donor — skip the radius scan and
+  // notify only the targeted donor.
+  if (data.targetDonorId) {
+    const donorDoc = await db.collection("Donors").doc(data.targetDonorId).get();
+    if (donorDoc.exists) {
+      const donor = donorDoc.data();
+      const distance = haversineDistance(
+          latitude,
+          longitude,
+          donor.location?.latitude,
+          donor.location?.longitude,
+      );
+      await event.data.ref.update({
+        nearByDonors: [{
+          id: donorDoc.id,
+          ...donor,
+          distance: Number.isFinite(distance) ? distance : null,
+        }],
+      });
+
+      const tokenDoc = await db.collection("UserTokens").doc(data.targetDonorId).get();
+      if (tokenDoc.exists) {
+        const tokens = tokenDoc.data()?.fcmTokens;
+        if (Array.isArray(tokens) && tokens.length > 0) {
+          try {
+            await getMessaging().sendEachForMulticast({
+              notification: {
+                title: "Direct Blood Request",
+                body: `${patientName} personally requested ${bloodType} blood from you (${urgency} priority).`,
+              },
+              data: {requestId: event.params.requestId, type: "blood_request"},
+              tokens,
+            });
+            logger.log(`Targeted FCM sent to donor ${data.targetDonorId}`);
+          } catch (error) {
+            logger.error("Error sending targeted multicast:", error);
+          }
+        }
+      }
+    } else {
+      logger.warn(`targetDonorId ${data.targetDonorId} has no Donors profile`);
+    }
+    return;
+  }
+
+  const center = [latitude, longitude];
   const bounds = geohashQueryBounds(center, RADIUS_KM * 1000);
 
   const promises = bounds.map(([start, end]) =>
@@ -237,6 +283,25 @@ exports.acceptBloodRequest = onCall(async (request) => {
   }
 
   const fresh = (await ref.get()).data();
+
+  // Attach donor contact info so the recipient can reach the donor directly.
+  let donorPhone = "";
+  let donorEmail = "";
+  try {
+    const donorSnap = await db.collection("Donors").doc(uid).get();
+    if (donorSnap.exists) {
+      donorPhone = donorSnap.data().phoneNo || "";
+      donorEmail = donorSnap.data().email || "";
+    }
+  } catch (err) {
+    logger.warn("Failed to load donor contact info", err);
+  }
+  if (donorPhone || donorEmail) {
+    await ref.update({acceptedByPhone: donorPhone, acceptedByEmail: donorEmail});
+    fresh.acceptedByPhone = donorPhone;
+    fresh.acceptedByEmail = donorEmail;
+  }
+
   try {
     await createTrackingSession(requestId, fresh);
   } catch (err) {
@@ -247,6 +312,12 @@ exports.acceptBloodRequest = onCall(async (request) => {
       fresh.userId,
       "Donor Accepted!",
       `${donorName} accepted your ${fresh.bloodType} request. Live tracking is starting.`,
+      {requestId, type: "request_accepted"},
+  );
+  await notifyUser(
+      uid,
+      "You're on the way!",
+      `You accepted ${fresh.patientName || "the patient"}'s emergency request. Live tracking is live.`,
       {requestId, type: "request_accepted"},
   );
 
@@ -279,6 +350,78 @@ exports.declineBloodRequest = onCall(async (request) => {
 });
 
 /**
+ * Callable: the accepted donor cancels after accepting. The request reopens
+ * (status back to "pending") so other donors can accept it again.
+ */
+exports.cancelAcceptedBloodRequest = onCall(async (request) => {
+  if (!request.auth?.uid) {
+    throw new HttpsError("unauthenticated", "Login required.");
+  }
+  const requestId = request.data?.requestId;
+  if (!requestId || typeof requestId !== "string") {
+    throw new HttpsError("invalid-argument", "requestId is required.");
+  }
+
+  const uid = request.auth.uid;
+  const db = getFirestore();
+  const ref = db.collection("BloodRequests").doc(requestId);
+  let requesterId = null;
+  let donorName = null;
+
+  try {
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) {
+        throw new HttpsError("not-found", "Blood request not found.");
+      }
+      const data = snap.data();
+      if (data.status !== "accepted") {
+        throw new HttpsError(
+            "failed-precondition",
+            "Only accepted requests can be cancelled.",
+        );
+      }
+      if (data.acceptedBy !== uid) {
+        throw new HttpsError(
+            "permission-denied",
+            "Only the accepted donor can cancel this request.",
+        );
+      }
+      requesterId = data.userId;
+      donorName = data.acceptedByName || "The donor";
+      tx.update(ref, {
+        status: "pending",
+        acceptedBy: null,
+        acceptedByName: null,
+        acceptedAt: null,
+        acceptedByPhone: null,
+        acceptedByEmail: null,
+        trackingActive: false,
+      });
+    });
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    logger.error("cancelAcceptedBloodRequest transaction failed", err);
+    throw new HttpsError("internal", err.message || "Cancel failed.");
+  }
+
+  try {
+    await purgeTrackingSession(requestId);
+  } catch (err) {
+    logger.warn("RTDB purge on cancel failed", err);
+  }
+
+  await notifyUser(
+      requesterId,
+      "Donor Cancelled",
+      `${donorName} cancelled the accepted request. It is open for other donors again.`,
+      {requestId, type: "request_cancelled"},
+  );
+
+  return {ok: true, requestId, status: "pending"};
+});
+
+/**
  * Keep RTDB tracking in sync with request lifecycle (fulfill/cancel cleanup,
  * and session create if accept happened via client transaction).
  */
@@ -300,7 +443,28 @@ exports.onBloodRequestUpdated = onDocumentUpdated("BloodRequests/{requestId}", a
           `${after.acceptedByName || "A donor"} accepted your request. Tracking is live.`,
           {requestId, type: "request_accepted"},
       );
+      await notifyUser(
+          after.acceptedBy,
+          "You're on the way!",
+          `You accepted ${after.patientName || "the patient"}'s emergency request. Tracking is live.`,
+          {requestId, type: "request_accepted"},
+      );
     }
+  }
+
+  // Donor cancelled an accepted request → back to pending; other donors may accept.
+  if (before.status === "accepted" && after.status === "pending") {
+    try {
+      await purgeTrackingSession(requestId);
+    } catch (err) {
+      logger.warn("RTDB purge on donor cancel failed", err);
+    }
+    await notifyUser(
+        after.userId,
+        "Donor Cancelled",
+        `${before.acceptedByName || "The accepted donor"} cancelled the request. It is open for other donors again.`,
+        {requestId, type: "request_cancelled"},
+    );
   }
 
   const closed = ["fulfilled", "cancelled"].includes(after.status);

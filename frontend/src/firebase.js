@@ -1,6 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getDatabase } from "firebase/database";
 import { getMessaging } from "firebase/messaging";
@@ -23,6 +23,13 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
+
+// Keep users signed in across page refreshes and PWA relaunches.
+// browserLocalPersistence stores the session in localStorage (survives refresh,
+// giving the required multi-day / "at least 1 day" login session).
+setPersistence(auth, browserLocalPersistence).catch((err) => {
+  console.warn("Failed to set auth persistence:", err);
+});
 export const db = getFirestore(app);
 export const rtdb = getDatabase(app);
 export const functions = getFunctions(app);

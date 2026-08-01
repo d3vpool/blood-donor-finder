@@ -3,6 +3,7 @@ import {
   runTransaction,
   updateDoc,
   arrayUnion,
+  getDoc,
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { auth, db, functions } from "../firebase";
@@ -69,11 +70,26 @@ export async function acceptBloodRequestClient({ requestId, donorName }) {
       throw new Error("You cannot accept your own request.");
     }
 
+    // Attach the donor's contact details so the recipient can reach them directly.
+    let donorPhone = "";
+    let donorEmail = "";
+    try {
+      const donorSnap = await getDoc(doc(db, "Donors", user.uid));
+      if (donorSnap.exists()) {
+        donorPhone = donorSnap.data().phoneNo || "";
+        donorEmail = donorSnap.data().email || "";
+      }
+    } catch (e) {
+      console.warn("Failed to load donor contact info:", e);
+    }
+
     const patch = {
       status: "accepted",
       acceptedBy: user.uid,
       acceptedByName: donorName || user.displayName || user.email || "A Hero Donor",
       acceptedAt: new Date().toISOString(),
+      acceptedByPhone: donorPhone,
+      acceptedByEmail: donorEmail,
       trackingActive: true,
     };
     tx.update(ref, patch);
@@ -121,5 +137,60 @@ export async function completeBloodRequest(requestId, status = "fulfilled") {
     await purgeTrackingSession(requestId);
   } catch (e) {
     console.warn("RTDB purge failed:", e);
+  }
+}
+
+/**
+ * The accepted donor cancels after accepting: request reopens (status → pending)
+ * so other donors can accept it again. Purges the live-tracking session.
+ */
+export async function cancelAcceptedBloodRequest({ requestId }) {
+  const user = auth.currentUser;
+  if (!user || user.isAnonymous) {
+    throw new Error("Login required.");
+  }
+
+  try {
+    const callable = httpsCallable(functions, "cancelAcceptedBloodRequest");
+    return (await callable({ requestId })).data;
+  } catch (err) {
+    const code = String(err?.code || "");
+    if (
+      code.includes("failed-precondition") ||
+      code.includes("permission-denied") ||
+      code.includes("unauthenticated") ||
+      code.includes("not-found")
+    ) {
+      throw err;
+    }
+    console.warn("Callable cancel unavailable, using client update:", err?.message || err);
+
+    const ref = doc(db, "BloodRequests", requestId);
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists()) throw new Error("Blood request not found.");
+      const data = snap.data();
+      if (data.status !== "accepted") {
+        throw new Error("Only accepted requests can be cancelled.");
+      }
+      if (data.acceptedBy !== user.uid) {
+        throw new Error("Only the accepted donor can cancel this request.");
+      }
+      tx.update(ref, {
+        status: "pending",
+        acceptedBy: null,
+        acceptedByName: null,
+        acceptedAt: null,
+        acceptedByPhone: null,
+        acceptedByEmail: null,
+        trackingActive: false,
+      });
+    });
+    try {
+      await purgeTrackingSession(requestId);
+    } catch (e) {
+      console.warn("RTDB purge failed:", e);
+    }
+    return { ok: true, requestId, status: "pending", via: "client" };
   }
 }

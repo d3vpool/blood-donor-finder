@@ -15,3 +15,25 @@
   - Material-UI: Would require custom components for emergency urgency design and is slower to adapt to new blood request workflows
   - CSS Modules + SCSS: Too slow for rapid iteration during emergency workflow updates
   - No CSS framework: Wouldn't meet the emergency response visual design requirements for high-contrast, accessible notification interfaces
+
+## 2026-08-02 Decision: Targeted donor requests via `targetDonorId`
+- **Context**: Recipients searching donors by radius needed to send a request to a *specific* donor instead of only broadcasting to every matching donor.
+- **Decision**: Reuse the existing `BloodRequests` lifecycle for direct requests by adding a `targetDonorId` field. The `bloodRequestReceived` trigger skips the geo scan and notifies only that donor; `DonorInbox` surfaces targeted requests. The targeted request still flows through the standard accept/tracking/cancel pipeline.
+- **Alternatives considered**:
+  - Separate "direct request" collection/flow: would duplicate accept + tracking logic for no benefit
+  - EmailJS modal only (existing ContactModal): no acceptance or live-tracking integration
+
+## 2026-08-02 Decision: Donor cancel reopens an accepted request
+- **Context**: A donor may need to back out after accepting; the recipient's request must remain usable by other donors afterwards.
+- **Decision**: `cancelAcceptedBloodRequest` resets an accepted request to `pending` (clearing `acceptedBy*`, `trackingActive` and purging the RTDB node), so any other donor can accept again. Recipient-initiated cancel still closes the request permanently (`cancelled`). A Firestore rule (`isDonorCancelling`) guards the donor-only transition.
+- **Alternatives considered**:
+  - Permanent `cancelled` on donor cancel: would strand a needy recipient and force a re-submit
+  - Ignore donor cancellation: contradicts the requirement and leaves stale tracking nodes
+
+## 2026-08-02 Decision: Straight-line ETA estimate
+- **Context**: Both donor and recipient should see the donor's estimated time of arrival while the delivery is live.
+- **Decision**: Compute ETA client-side from straight-line distance (geofire-common) between live donor GPS and the hospital at an assumed 30 km/h urban speed. No external routing API dependency.
+- **Alternatives considered**:
+  - Google Directions API: accurate but needs billing, API key, and external network calls — overkill for an estimate
+  - Distance Matrix / OSRM: same external-dependency drawbacks
+
