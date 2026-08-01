@@ -6,6 +6,40 @@ Paced at **7–8 hrs/week** rather than full-time days, so phases are broken int
 
 ---
 
+## 📌 Status — 2026-08-02
+
+The Redis + WebSocket tracking service is **implemented** (`tracking-service/`) and
+wired into the frontend behind a feature flag (`REACT_APP_TRACKING_MODE=ws`).
+
+**Accurate history (not a correction):** an RTDB-based tracking implementation was
+built first to validate the feature end-to-end, then replaced with the Redis +
+WebSocket service once the design was proven. The RTDB code path still lives in
+`frontend/src/services/tracking.js` behind the flag for one-line rollback until the
+deployed service passes the full E2E checklist; after that the RTDB path is deleted
+and the flag removed.
+
+| Week | Item | Status |
+|------|------|--------|
+| Prereq | Donor availability/snooze toggle (web) | ✅ done (pre-existing) |
+| Prereq | Expo mobile auth parity | ❌ out of scope (separate work item) |
+| W1 | Acceptance flow (`status`/`acceptedBy`, Firestore transaction, Accept/Decline UI) | ✅ done — untouched by this migration |
+| W2 | Tracking service core (rooms, access control, publish, relay) | ✅ done (`tracking-service/`) |
+| W3 | Deploy (Render free tier) + frontend wiring | ✅ done (`render.yaml` + feature flag); deploy pending your Render account |
+| W4 | Rate limiting + session expiry | ✅ done server-side (Redis + per-room Firestore listener + idle timeout) |
+| W4 | OpenRouteService ETA | ⏸ deferred — straight-line ETA retained (separate task) |
+| W5 | PWA layer | ❌ out of scope (separate work item) |
+| W6 | Testing | ✅ Step 2/3 suites pass locally; deployed E2E checklist pending |
+
+**Remaining (your side, needs deployed infra):**
+1. Deploy `tracking-service/` to Render, provision Redis, set `REDIS_URL`,
+   `FIREBASE_PROJECT_ID`, `GOOGLE_APPLICATION_CREDENTIALS`.
+2. Run the Step 4 E2E checklist (live map over WS, 429, idle/status expiry,
+   unauthorized reject, GPS-denied fallback, disconnect reconnect, unreachable banner).
+3. Flip `REACT_APP_TRACKING_MODE=ws`, re-verify, then delete the RTDB tracking
+   path + flag and remove the tracking-only RTDB rules.
+
+---
+
 ## 📊 Phase 4 (Revised) Completion Snapshot
 
 ```mermaid

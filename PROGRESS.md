@@ -1,5 +1,20 @@
 # 📅 Progress Log
 
+## 2026-08-02 — Kilo (RTDB → Redis + WebSocket tracking migration)
+- Done:
+  - **Step 1 — Transport-agnostic interface:** New `frontend/src/services/tracking.js` (`subscribeToLocation` / `publishLocation` / `closeTrackingSession` / `initiateTrackingSession` / `startDonorLocationPublisher`); `LiveTrackingMap`, `DonorLiveTracker`, `requestActions` refactored to call only it; `utils/liveTracking.js` deleted. No behavior change.
+  - **Step 2 — Standalone `tracking-service/`:** Node service (`ws` + `ioredis` + `firebase-admin` + `dotenv`): WS `/tracking?room&token` with Firebase Admin token verification + Firestore room access control (accepted donor or requester only), `POST /publish/:requestId`, `GET /health`, Redis pub/sub relay + last-location replay. Dev-only in-memory Redis/Firestore/auth shims gated behind `NODE_ENV !== "production"`. Manual tests pass (relay, cross-room isolation, unauthorized rejection).
+  - **Step 3 — Guardrails:** Redis `INCR`+`EXPIRE` publish rate limit (1/s → 429); per-room Firestore status listener (unsubscribed on room close) closing the room on `fulfilled`/`cancelled`; independent 15-min idle-timeout sweeper. Guardrail tests pass (429, idle expiry, status expiry, pending-reject).
+  - **Step 4 — Deploy + wiring:** `tracking-service/render.yaml` (free tier, `PORT`/`REDIS_URL` envs) + service README; frontend wired behind `REACT_APP_TRACKING_MODE` (default `rtdb`) with `REACT_APP_TRACKING_WS_URL`; WS client reconnects with exponential backoff (max 5) and surfaces "tracking unavailable"; RTDB path retained for one-line rollback.
+  - **Step 5 — Docs:** `Roadmap_Phase4_Revised.md` status table + this entry.
+- Why: Intentional migration of the live-tracking transport layer from Firebase RTDB to a self-hosted Redis + WebSocket service (per `Roadmap_Phase4_Revised.md`). Firestore / Cloud Functions / FCM acceptance flow untouched.
+- Verification: frontend `npm run build` PASS; `tracking-service` `npm test` PASS (Step 2 + Step 3 suites).
+- Left to do (requires deployed infra):
+  - Deploy `tracking-service/` to Render, provision Redis (free tier ok), set `REDIS_URL`, `FIREBASE_PROJECT_ID`, `GOOGLE_APPLICATION_CREDENTIALS`.
+  - Run the Step 4 E2E checklist (live map over WS, 429, idle/status expiry, unauthorized reject, GPS-denied fallback, disconnect reconnect, unreachable banner).
+  - After E2E passes: flip `REACT_APP_TRACKING_MODE=ws`, delete the RTDB path + flag, remove tracking-only RTDB rules.
+- Open questions: None
+
 ## 2026-08-02 — Kilo (issue resolution session)
 - Done:
   - **Persistent login (Issue 1):** Explicit `browserLocalPersistence` set on Firebase Auth (`frontend/src/firebase.js`) so users stay signed in across page refreshes and PWA relaunches (≥1 day session).
