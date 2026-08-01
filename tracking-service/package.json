@@ -1,0 +1,19 @@
+{
+  "name": "lifelink-tracking-service",
+  "version": "1.0.0",
+  "description": "LifeLink live-tracking service: WebSocket + Redis pub/sub relay for donor locations.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test/manual.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "firebase-admin": "^13.6.0",
+    "ioredis": "^5.4.1",
+    "ws": "^8.18.0"
+  }
+}
