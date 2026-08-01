@@ -2,6 +2,8 @@
 
 # Commit messages: keep them to ONE short line that summarizes the whole change (no multi-line bodies).
 
+# Task workflow: before implementing, present a step-by-step implementation plan. Divide the work into MULTIPLE well-sized git commits (each a logical, working increment — not too large, not too tiny) so that if a session limit is reached, work can resume from the last commit. Commit after each plan step is completed, using the one-line commit message format.
+
 # 🔥 LifeLink – Blood Donor Finder
 
 LifeLink is a full-stack web application designed to connect blood donors with people in need. It allows users to register as donors, search donors by blood group, and receive real-time notifications for urgent blood requests using Firebase Cloud Messaging (FCM). This project focuses on real-world problem solving, clean architecture, and production-ready practices.
