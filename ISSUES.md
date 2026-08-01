@@ -24,3 +24,6 @@ Problems (all resolved):
 
 - when a blood request is accepted the recipient should should the live location of the donor in map. And the map view window should be larger and prominent.May be move it to the top of the webpage.
   Fixed: New `LiveTrackingSection` renders a large, prominent live-tracking map at the top of the page (right under the header) for any accepted request, including donor contact and ETA.
+
+- when a blood request arrive at the donor side the donor webpage should show a popup that a new blood request has arrived.
+  Fixed: `DonorRequestAlert` popup appears when a new matched/targeted request arrives (new-arrival detection on the pending-request snapshot; first load stays silent, stale alerts are pruned). "View Request" scrolls to the donor inbox.

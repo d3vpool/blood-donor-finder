@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { collection, query, where, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "../firebase";
@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import { isRealUser } from "../utils/authUser";
 import { acceptBloodRequest, declineBloodRequest, cancelAcceptedBloodRequest } from "../utils/requestActions";
 import LiveTrackingMap from "./LiveTrackingMap";
+import DonorRequestAlert from "./DonorRequestAlert";
 
 const DonorInbox = () => {
   const [incomingRequests, setIncomingRequests] = useState([]);
@@ -15,6 +16,10 @@ const DonorInbox = () => {
   const [respondingId, setRespondingId] = useState(null);
   const [decliningId, setDecliningId] = useState(null);
   const [cancellingId, setCancellingId] = useState(null);
+  const [alerts, setAlerts] = useState([]);
+  // null = not yet primed; the first snapshot after (re)subscribing is treated
+  // as the baseline so pre-existing requests don't trigger a false popup.
+  const knownPendingIdsRef = useRef(null);
 
   useEffect(() => {
     let pendingUnsub = null;
@@ -52,6 +57,10 @@ const DonorInbox = () => {
       const requestsRef = collection(db, "BloodRequests");
       const pendingQ = query(requestsRef, where("status", "==", "pending"));
 
+      // Re-prime arrival detection: the first snapshot of this listener is the
+      // baseline, so only genuinely NEW requests pop up an alert.
+      knownPendingIdsRef.current = null;
+
       pendingUnsub = onSnapshot(
         pendingQ,
         (snapshot) => {
@@ -84,6 +93,22 @@ const DonorInbox = () => {
               new Date(b.requestedAt || Date.now()) - new Date(a.requestedAt || Date.now())
           );
           setIncomingRequests(matched);
+
+          // Popup alert only for requests that were NOT present in the previous
+          // snapshot (baseline = first snapshot, so page load stays quiet).
+          const currentIds = new Set(matched.map((r) => r.id));
+          if (knownPendingIdsRef.current !== null) {
+            const arrived = matched.filter((r) => !knownPendingIdsRef.current.has(r.id));
+            if (arrived.length > 0) {
+              setAlerts((prev) => {
+                const keep = prev.filter((a) => currentIds.has(a.id));
+                const existing = new Set(keep.map((a) => a.id));
+                return [...keep, ...arrived.filter((r) => !existing.has(r.id))];
+              });
+            }
+          }
+          knownPendingIdsRef.current = currentIds;
+
           setLoading(false);
         },
         (error) => {
@@ -166,6 +191,22 @@ const DonorInbox = () => {
     }
   };
 
+  const dismissAlert = (alertId) => {
+    setAlerts((prev) => prev.filter((a) => a.id !== alertId));
+  };
+
+  const viewAlert = (alertId) => {
+    dismissAlert(alertId);
+    const container = document.getElementById("donor-inbox");
+    if (container) {
+      try {
+        container.scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch (_) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    }
+  };
+
   if (loading) {
     return (
       <section id="donor-inbox" className="py-24 bg-slate-50 border-t border-slate-100">
@@ -191,7 +232,7 @@ const DonorInbox = () => {
     );
   }
 
-  if (!isRealUser(auth.currentUser) || (incomingRequests.length === 0 && acceptedByMe.length === 0)) {
+  if (!isRealUser(auth.currentUser)) {
     return null;
   }
 
@@ -327,7 +368,18 @@ const DonorInbox = () => {
   };
 
   return (
-    <section id="donor-inbox" className="py-24 bg-gradient-to-b from-red-50/50 to-white border-t border-slate-100">
+    <>
+      {alerts.map((req) => (
+        <DonorRequestAlert
+          key={req.id}
+          request={req}
+          onView={() => viewAlert(req.id)}
+          onDismiss={() => dismissAlert(req.id)}
+        />
+      ))}
+
+      {incomingRequests.length === 0 && acceptedByMe.length === 0 ? null : (
+      <section id="donor-inbox" className="py-24 bg-gradient-to-b from-red-50/50 to-white border-t border-slate-100">
       <div className="max-w-4xl mx-auto px-6">
         {acceptedByMe.length > 0 && (
           <div className="mb-16">
@@ -366,7 +418,9 @@ const DonorInbox = () => {
           </>
         )}
       </div>
-    </section>
+      </section>
+      )}
+    </>
   );
 };
 

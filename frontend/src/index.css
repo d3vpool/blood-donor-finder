@@ -294,6 +294,9 @@
   .top-5 {
     top: calc(var(--spacing) * 5);
   }
+  .top-20 {
+    top: calc(var(--spacing) * 20);
+  }
   .top-24 {
     top: calc(var(--spacing) * 24);
   }
@@ -522,6 +525,9 @@
   .h-11 {
     height: calc(var(--spacing) * 11);
   }
+  .h-12 {
+    height: calc(var(--spacing) * 12);
+  }
   .h-24 {
     height: calc(var(--spacing) * 24);
   }
@@ -594,6 +600,9 @@
   .w-6 {
     width: calc(var(--spacing) * 6);
   }
+  .w-7 {
+    width: calc(var(--spacing) * 7);
+  }
   .w-8 {
     width: calc(var(--spacing) * 8);
   }
@@ -603,6 +612,9 @@
   .w-11 {
     width: calc(var(--spacing) * 11);
   }
+  .w-12 {
+    width: calc(var(--spacing) * 12);
+  }
   .w-13 {
     width: calc(var(--spacing) * 13);
   }
@@ -611,6 +623,9 @@
   }
   .w-\[90\%\] {
     width: 90%;
+  }
+  .w-\[92vw\] {
+    width: 92vw;
   }
   .w-\[95\%\] {
     width: 95%;
@@ -1013,6 +1028,9 @@
   }
   .border-red-200 {
     border-color: var(--color-red-200);
+  }
+  .border-red-400 {
+    border-color: var(--color-red-400);
   }
   .border-red-500 {
     border-color: var(--color-red-500);
@@ -1773,10 +1791,22 @@
       --tw-shadow-color: color-mix(in oklab, color-mix(in oklab, var(--color-red-500) 20%, transparent) var(--tw-shadow-alpha), transparent);
     }
   }
+  .shadow-red-500\/25 {
+    --tw-shadow-color: color-mix(in srgb, oklch(63.7% 0.237 25.331) 25%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      --tw-shadow-color: color-mix(in oklab, color-mix(in oklab, var(--color-red-500) 25%, transparent) var(--tw-shadow-alpha), transparent);
+    }
+  }
   .shadow-slate-100\/50 {
     --tw-shadow-color: color-mix(in srgb, oklch(96.8% 0.007 247.896) 50%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
       --tw-shadow-color: color-mix(in oklab, color-mix(in oklab, var(--color-slate-100) 50%, transparent) var(--tw-shadow-alpha), transparent);
+    }
+  }
+  .shadow-slate-200\/60 {
+    --tw-shadow-color: color-mix(in srgb, oklch(92.9% 0.013 255.508) 60%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      --tw-shadow-color: color-mix(in oklab, color-mix(in oklab, var(--color-slate-200) 60%, transparent) var(--tw-shadow-alpha), transparent);
     }
   }
   .shadow-slate-800\/10 {
@@ -2343,6 +2373,11 @@
   .max-lg\:py-5 {
     @media (width < 64rem) {
       padding-block: calc(var(--spacing) * 5);
+    }
+  }
+  .md\:right-6 {
+    @media (width >= 48rem) {
+      right: calc(var(--spacing) * 6);
     }
   }
   .md\:grid-cols-1 {
