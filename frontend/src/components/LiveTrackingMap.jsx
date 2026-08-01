@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { subscribeToTracking } from "../utils/liveTracking";
+import { subscribeToLocation } from "../services/tracking";
 import { distanceBetween } from "geofire-common";
 
 // Rough average urban travel speed used for the ETA estimate (straight-line based).
@@ -83,7 +83,7 @@ export default function LiveTrackingMap({ requestId, hospitalFallback, donorName
     setConnecting(true);
     // Give RTDB node up to 6 s to be created before showing an error
     const connectTimeout = setTimeout(() => setConnecting(false), 6000);
-    const unsub = subscribeToTracking(
+    const unsub = subscribeToLocation(
       requestId,
       (data) => {
         clearTimeout(connectTimeout);

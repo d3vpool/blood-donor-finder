@@ -3,7 +3,7 @@ import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { isRealUser } from "../utils/authUser";
-import { startDonorLocationPublisher } from "../utils/liveTracking";
+import { startDonorLocationPublisher } from "../services/tracking";
 
 /**
  * Invisible controller: when the signed-in user is the accepted donor on any

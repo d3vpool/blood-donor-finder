@@ -1,3 +1,4 @@
+// src/services/tracking.js
 import {
   ref,
   set,
@@ -8,11 +9,14 @@ import {
 } from "firebase/database";
 import { rtdb, auth } from "../firebase";
 
-/**
- * Create the ephemeral tracking node after a donor accepts.
- * Structure: tracking/{requestId}
- */
-export async function bootstrapTrackingSession(requestId, requestData) {
+// Transport-agnostic live-tracking interface.
+//
+// All live-tracking data flow goes through the functions below so the
+// transport layer can be swapped (RTDB -> WebSocket/Redis service) without
+// touching the UI components. Currently backed by Firebase RTDB; the
+// WebSocket implementation lands behind the REACT_APP_TRACKING_MODE flag.
+
+export async function initiateTrackingSession(requestId, requestData) {
   if (!requestId || !requestData?.acceptedBy || !requestData?.userId) {
     throw new Error("Missing fields for tracking session.");
   }
@@ -31,43 +35,29 @@ export async function bootstrapTrackingSession(requestId, requestData) {
   });
 }
 
-export async function publishDonorLocation(requestId, { latitude, longitude, accuracy }) {
+export async function publishLocation(requestId, { lat, lng, accuracy }) {
   const user = auth.currentUser;
   if (!user || !requestId) return;
 
-  const locationRef = ref(rtdb, `tracking/${requestId}/location`);
-  await set(locationRef, {
-    lat: Number(latitude),
-    lng: Number(longitude),
+  await set(ref(rtdb, `tracking/${requestId}/location`), {
+    lat: Number(lat),
+    lng: Number(lng),
     accuracy: accuracy ?? null,
     updatedAt: Date.now(),
     donorId: user.uid,
   });
 }
 
-export async function markTrackingEnded(requestId) {
-  if (!requestId) return;
-  try {
-    await update(ref(rtdb, `tracking/${requestId}`), {
-      status: "ended",
-      endedAt: Date.now(),
-    });
-  } catch (_) { /* ignore */ }
-}
-
-export async function purgeTrackingSession(requestId) {
+export async function closeTrackingSession(requestId) {
   if (!requestId) return;
   await remove(ref(rtdb, `tracking/${requestId}`));
 }
 
-/**
- * Subscribe to a tracking session. Returns an unsubscribe function.
- */
-export function subscribeToTracking(requestId, onData, onError) {
+export function subscribeToLocation(requestId, onUpdate, onError) {
   if (!requestId) return () => {};
   const node = ref(rtdb, `tracking/${requestId}`);
   const handler = (snap) => {
-    onData(snap.exists() ? { id: requestId, ...snap.val() } : null);
+    onUpdate(snap.exists() ? { id: requestId, ...snap.val() } : null);
   };
   const errHandler = (err) => {
     if (typeof onError === "function") onError(err);
@@ -77,7 +67,7 @@ export function subscribeToTracking(requestId, onData, onError) {
 }
 
 /**
- * Watch device GPS and publish to RTDB while callback returns true / until stopped.
+ * Watch device GPS and publish while the request stays accepted.
  * Returns a stop() function.
  */
 export function startDonorLocationPublisher(requestId, options = {}) {
@@ -105,9 +95,9 @@ export function startDonorLocationPublisher(requestId, options = {}) {
       if (now - lastSent < minIntervalMs) return;
       lastSent = now;
       try {
-        await publishDonorLocation(requestId, {
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
+        await publishLocation(requestId, {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
           accuracy: pos.coords.accuracy,
         });
       } catch (err) {

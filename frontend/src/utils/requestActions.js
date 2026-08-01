@@ -7,7 +7,7 @@ import {
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { auth, db, functions } from "../firebase";
-import { bootstrapTrackingSession, purgeTrackingSession } from "./liveTracking";
+import { initiateTrackingSession, closeTrackingSession } from "../services/tracking";
 
 /**
  * Race-safe accept: prefers Cloud Function callable; falls back to a
@@ -97,9 +97,9 @@ export async function acceptBloodRequestClient({ requestId, donorName }) {
   });
 
   try {
-    await bootstrapTrackingSession(requestId, requestData);
+    await initiateTrackingSession(requestId, requestData);
   } catch (e) {
-    console.warn("RTDB bootstrap failed (enable Realtime Database in Firebase Console):", e);
+    console.warn("Tracking session bootstrap failed:", e);
   }
 
   return { ok: true, requestId, status: "accepted", via: "client-transaction" };
@@ -134,9 +134,9 @@ export async function completeBloodRequest(requestId, status = "fulfilled") {
     completedAt: new Date().toISOString(),
   });
   try {
-    await purgeTrackingSession(requestId);
+    await closeTrackingSession(requestId);
   } catch (e) {
-    console.warn("RTDB purge failed:", e);
+    console.warn("Tracking session cleanup failed:", e);
   }
 }
 
@@ -187,9 +187,9 @@ export async function cancelAcceptedBloodRequest({ requestId }) {
       });
     });
     try {
-      await purgeTrackingSession(requestId);
+      await closeTrackingSession(requestId);
     } catch (e) {
-      console.warn("RTDB purge failed:", e);
+      console.warn("Tracking session cleanup failed:", e);
     }
     return { ok: true, requestId, status: "pending", via: "client" };
   }
